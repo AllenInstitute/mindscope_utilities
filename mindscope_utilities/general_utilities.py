@@ -85,10 +85,10 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, ste
     '''
 
     # set up a dictionary with key 'time' and value as a linearly spaced time array
-    _d = {'time': np.linspace(-t_before, t_after, int((t_before + t_after) / step_size + int(endpoint)), endpoint = endpoint)}
+    data_dict = {'time': np.linspace(-t_before, t_after, int((t_before + t_after) / step_size + int(endpoint)), endpoint = endpoint)}
 
     # iterate over all event times
-    for ii, event_time in enumerate(np.array(event_times)):
+    for event_number, event_time in enumerate(np.array(event_times)):
 
         # get a slice of the input data surrounding each event time
         data_slice = data.query("{0} > (@event_time - @t_before) and {0} < (@event_time + @t_after)".format(x))
@@ -98,10 +98,10 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, ste
         # update our dictionary to have a new key defined as 'event_{EVENT NUMBER}_t={EVENT TIME}' and
         # a value that includes an array that represents the sliced data around the current event, interpolated
         # on the linearly spaced time array
-        _d.update({'event_{}_t={}'.format(ii, event_time): np.interp(_d['time'], x_slice, y_slice)})
+        data_dict.update({'event_{}_t={}'.format(event_number, event_time): np.interp(_d['time'], x_slice, y_slice)})
 
     # define a wide dataframe as a dataframe of the above compiled dictionary
-    wide_etr = pd.DataFrame(_d)
+    wide_etr = pd.DataFrame(data_dict)
     if output_format == 'wide':
         # return the wide dataframe if output_format is 'wide'
         return wide_etr.set_index('time')
