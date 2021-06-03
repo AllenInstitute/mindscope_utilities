@@ -5,9 +5,9 @@ setup(name='mindscope_utilities',
     description='Utilities for loading, manipulating and visualizing data from the Allen Institute Mindscope program',
     url='https://github.com/AllenInstitute/mindscope_utilities',
     author='Allen Institute',
-    author_email="marinag@alleninstitute.org, dougo@alleninstitute.org",
+    author_email='marinag@alleninstitute.org, dougo@alleninstitute.org',
     license='Allen Institute',
     install_requires=[
-        allensdk==2.11.2
+        'allensdk==2.11.2'
     ],
 )
