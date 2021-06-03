@@ -2,93 +2,102 @@ import pandas as pd
 import numpy as np
 
 
-def event_triggered_response(df, parameter, event_times, time_key=None, t_before=10, t_after=10, sampling_rate=60, output_format='tidy'):
+def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, step_size=0.01, endpoint=True, output_format='tidy'):
     '''
-    build event triggered response around a given set of events
-    required inputs:
-      df: dataframe of input data
-      parameter: column of input dataframe to extract around events
-      event_times: times of events of interest
-    optional inputs:
-      time_key: key to use for time (if None (default), will search for either 't' or 'time'. if 'index', use indices)
-      t_before: time before each of event of interest
-      t_after: time after each event of interest
-      sampling_rate: desired sampling rate of output (input data will be interpolated)
-      output_format: 'wide' or 'tidy' (default = 'tidy')
-    output:
-      if output_format == 'wide':
-        dataframe with one time column ('t') and one column of data for each event
-      if output_format == 'tidy':
-        dataframe with columns representing:
-            time
-            output value
-            event number
-            event time
+    Slices a timeseries relative to a given set of event times to build an event-triggered response.
+
+    For example, if we have a response of a sensory neuron, along the times of sensory events that elicit a response in that neuron,
+    this function will return response in a time window surrounding each event.
+
+    The times of the events need not align with the measured times of the neural data. Relative times will be calculated by linear interpolation.
+
+    Parameters:
+    -----------
+    data: Pandas.DataFrame
+        Input dataframe in tidy format
+    x : string
+        Name of column in data to use as x-data
+    y : string
+        Name of column to use as y-data
+    event_times: list or array of floats
+        Times of events of interest. Values in column specified by `y` will be sliced and interpolated relative to these times
+    t_before : float
+        time before each of event of interest to include in each slice
+    t_after : float
+        time after each event of interest to include in each slice
+    step_size : float
+        desired step size of output (input data will be interpolated to this step size)
+    endpoint : Boolean
+        Passed to np.linspace to calculate relative time
+        If True, stop is the last sample. Otherwise, it is not included. Default is True
+    output_format : string
+        'wide' or 'tidy' (default = 'tidy')
+        if 'tidy'
+            One column representing time
+            One column representing event_number
+            One column representing event_time
+            One row per observation (total rows = len(time) x len(event_times))
+        if 'wide', output format will be:
+            time as indices
+            One row per interpolated timepoint
+            One column per event, with column names titled event_{EVENT NUMBER}_t={EVENT TIME}
+        
+    Returns:
+    --------
+    Pandas.DataFrame
+        See description in `output_format` section above
+
+    Examples:
+    ---------
     An example use case, recover a sinousoid from noise:
-        (also see https://gist.github.com/dougollerenshaw/628c63375cc68f869a28933bd5e2cbe5)
-        import pandas as pd
-        import numpy as np
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        # generate some sample data¶
-        # a sinousoid corrupted by noise
-        # make a time vector
-        # go from -10 to 110 so we have a 10 second overage if we analyze from 0 to 100 seconds
-        t = np.arange(-10,110,0.001)
-        # now build a dataframe
-        df = pd.DataFrame({
+    
+    First, define a time vector
+    >>> t = np.arange(-10,110,0.001)
+
+    Now build a dataframe with one column for time, and another column that is a noise-corrupted sinuosoid with period of 1
+    >>> data = pd.DataFrame({
             'time': t,
             'noisy_sinusoid': np.sin(2*np.pi*t) + np.random.randn(len(t))*3
         })
-        # use the event_triggered_response function to get a tidy dataframe of the signal around every event
-        # events will simply be generated as every 1 second interval starting at 0.5, since our period here is 1
-        etr = event_triggered_response(
-            df,
-            parameter = 'noisy_sinusoid',
-            event_times = [C+0.5 for C in range(0,99)],
+
+    Now use the event_triggered_response function to get a tidy dataframe of the signal around every event
+    Events will simply be generated as every 1 second interval starting at 0, since our period here is 1
+    >>> etr = event_triggered_response(
+            data,
+            x = 'time',
+            y = 'noisy_sinusoid',
+            event_times = np.arange(100),
             t_before = 1,
             t_after = 1,
-            sampling_rate = 100
+            step_size = 0.001
         )
-        # use seaborn to view the result
-        # We're able to recover the sinusoid through averaging
-        fig, ax = plt.subplots()
-        sns.lineplot(
+    Then use seaborn to view the result
+    We're able to recover the sinusoid through averaging
+    >>> import matplotlib.pyplot as plt
+    >>> import seaborn as sns
+    >>> fig, ax = plt.subplots()
+    >>> sns.lineplot(
             data = etr,
             x='time',
             y='noisy_sinusoid',
             ax=ax
         )
     '''
-    if time_key is None:
-        if 't' in df.columns:
-            time_key = 't'
-        elif 'timestamps' in df.columns:
-            time_key = 'timestamps'
-        else:
-            time_key = 'time'
 
-    _d = {'time': np.arange(-t_before, t_after, 1 / sampling_rate)}
+    _d = {'time': np.linspace(-t_before, t_after, int((t_before + t_after) / step_size + int(endpoint)), endpoint = endpoint)}
     for ii, event_time in enumerate(np.array(event_times)):
 
-        if time_key == 'index':
-            df_local = df.loc[(event_time - t_before):(event_time + t_after)]
-            t = df_local.index.values - event_time
-        else:
-            df_local = df.query(
-                "{0} > (@event_time - @t_before) and {0} < (@event_time + @t_after)".format(time_key))
-            t = df_local[time_key] - event_time
-        y = df_local[parameter]
+        data_slice = data.query("{0} > (@event_time - @t_before) and {0} < (@event_time + @t_after)".format(x))
+        x_slice = data_slice[x] - event_time
+        y_slice = data_slice[y]
 
-        _d.update({'event_{}_t={}'.format(ii, event_time)
-                  : np.interp(_d['time'], t, y)})
+        _d.update({'event_{}_t={}'.format(ii, event_time): np.interp(_d['time'], x_slice, y_slice)})
+
+    wide_etr = pd.DataFrame(_d)
     if output_format == 'wide':
-        return pd.DataFrame(_d)
+        return wide_etr.set_index('time')
     elif output_format == 'tidy':
-        df = pd.DataFrame(_d)
-        melted = df.melt(id_vars='time')
-        melted['event_number'] = melted['variable'].map(
-            lambda s: s.split('event_')[1].split('_')[0])
-        melted['event_time'] = melted['variable'].map(
-            lambda s: s.split('t=')[1])
-        return melted.drop(columns=['variable']).rename(columns={'value': parameter})
+        tidy_etr = wide_etr.melt(id_vars='time')
+        tidy_etr['event_number'] = tidy_etr['variable'].map(lambda s: s.split('event_')[1].split('_')[0])
+        tidy_etr['event_time'] = tidy_etr['variable'].map(lambda s: s.split('t=')[1])
+        return tidy_etr.drop(columns=['variable']).rename(columns={'value': y})
