@@ -84,20 +84,34 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, ste
         )
     '''
 
+    # set up a dictionary with key 'time' and value as a linearly spaced time array
     _d = {'time': np.linspace(-t_before, t_after, int((t_before + t_after) / step_size + int(endpoint)), endpoint = endpoint)}
+
+    # iterate over all event times
     for ii, event_time in enumerate(np.array(event_times)):
 
+        # get a slice of the input data surrounding each event time
         data_slice = data.query("{0} > (@event_time - @t_before) and {0} < (@event_time + @t_after)".format(x))
         x_slice = data_slice[x] - event_time
         y_slice = data_slice[y]
 
+        # update our dictionary to have a new key defined as 'event_{EVENT NUMBER}_t={EVENT TIME}' and
+        # a value that includes an array that represents the sliced data around the current event, interpolated
+        # on the linearly spaced time array
         _d.update({'event_{}_t={}'.format(ii, event_time): np.interp(_d['time'], x_slice, y_slice)})
 
+    # define a wide dataframe as a dataframe of the above compiled dictionary
     wide_etr = pd.DataFrame(_d)
     if output_format == 'wide':
+        # return the wide dataframe if output_format is 'wide'
         return wide_etr.set_index('time')
     elif output_format == 'tidy':
+        # if output format is 'tidy', transform the wide dataframe to tidy format
+        # first, melt the dataframe with the 'id_vars' column as "time"
         tidy_etr = wide_etr.melt(id_vars='time')
+        # add an "event_number" column that contains the event number
         tidy_etr['event_number'] = tidy_etr['variable'].map(lambda s: s.split('event_')[1].split('_')[0])
+        # add an "event_time" column that contains the event time ()
         tidy_etr['event_time'] = tidy_etr['variable'].map(lambda s: s.split('t=')[1])
+        # return the tidy dataframe, after having dropped the "variable" column
         return tidy_etr.drop(columns=['variable']).rename(columns={'value': y})
