@@ -26,7 +26,9 @@ python -m ipykernel install --user --name mindscope_utilities
 
 Install mindscope_utilities
 ```
-pip install git+https://github.com/AllenInstitute/mindscope_utilities.git
+git clone https://github.com/AllenInstitute/mindscope_utilities.git
+cd mindscope_utilities
+pip install -e .
 ```
 
 # Testing
