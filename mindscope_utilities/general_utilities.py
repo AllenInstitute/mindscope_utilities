@@ -2,12 +2,12 @@ import pandas as pd
 import numpy as np
 
 
-def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, step_size=0.01, endpoint=True, output_format='tidy'):
+def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):
     '''
     Slices a timeseries relative to a given set of event times to build an event-triggered response.
 
-    For example, if we have a response of a sensory neuron, along the times of sensory events that elicit a response in that neuron,
-    this function will return response in a time window surrounding each event.
+    For example, If we have data such as a measurement of neural activity over time and specific events in time that we want to align 
+    the neural activity to, this function will extract segments of the neural timeseries in a specified time window around each event.
 
     The times of the events need not align with the measured times of the neural data. Relative times will be calculated by linear interpolation.
 
@@ -15,19 +15,21 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, ste
     -----------
     data: Pandas.DataFrame
         Input dataframe in tidy format
-    x : string
-        Name of column in data to use as x-data
+        Each row should be one observation
+        Must contains columns representing `t` and `y` (see below)
+    t : string
+        Name of column in data to use as time data
     y : string
-        Name of column to use as y-data
+        Name of column to use as y data
     event_times: list or array of floats
         Times of events of interest. Values in column specified by `y` will be sliced and interpolated relative to these times
     t_before : float
-        time before each of event of interest to include in each slice
+        time before each of event of interest to include in each slice (in same units as `t` column)
     t_after : float
-        time after each event of interest to include in each slice
-    step_size : float
-        desired step size of output (input data will be interpolated to this step size)
-    endpoint : Boolean
+        time after each event of interest to include in each slice (in same units as `t` column)
+    output_sampling_rate : float
+        desired sampling of output (input data will be interpolated to this sampling rate)
+    include_endpoint : Boolean
         Passed to np.linspace to calculate relative time
         If True, stop is the last sample. Otherwise, it is not included. Default is True
     output_format : string
@@ -69,7 +71,7 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, ste
             event_times = np.arange(100),
             t_before = 1,
             t_after = 1,
-            step_size = 0.001
+            output_sampling_rate = 100
         )
     Then use seaborn to view the result
     We're able to recover the sinusoid through averaging
@@ -85,7 +87,8 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, ste
     '''
 
     # set up a dictionary with key 'time' and value as a linearly spaced time array
-    data_dict = {'time': np.linspace(-t_before, t_after, int((t_before + t_after) / step_size + int(endpoint)), endpoint = endpoint)}
+    step_size = 1/output_sampling_rate
+    data_dict = {'time': np.linspace(-t_before, t_after, int((t_before + t_after) / step_size + int(include_endpoint)), endpoint = include_endpoint)}
 
     # iterate over all event times
     for event_number, event_time in enumerate(np.array(event_times)):
@@ -98,7 +101,7 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, ste
         # update our dictionary to have a new key defined as 'event_{EVENT NUMBER}_t={EVENT TIME}' and
         # a value that includes an array that represents the sliced data around the current event, interpolated
         # on the linearly spaced time array
-        data_dict.update({'event_{}_t={}'.format(event_number, event_time): np.interp(_d['time'], x_slice, y_slice)})
+        data_dict.update({'event_{}_t={}'.format(event_number, event_time): np.interp(data_dict['time'], x_slice, y_slice)})
 
     # define a wide dataframe as a dataframe of the above compiled dictionary
     wide_etr = pd.DataFrame(data_dict)
@@ -113,5 +116,7 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, ste
         tidy_etr['event_number'] = tidy_etr['variable'].map(lambda s: s.split('event_')[1].split('_')[0])
         # add an "event_time" column that contains the event time ()
         tidy_etr['event_time'] = tidy_etr['variable'].map(lambda s: s.split('t=')[1])
-        # return the tidy dataframe, after having dropped the "variable" column
-        return tidy_etr.drop(columns=['variable']).rename(columns={'value': y})
+        # drop the "variable" column, rename the "value" column
+        tidy_etr = tidy_etr.drop(columns=['variable']).rename(columns={'value': y})
+        # return the tidy event triggered response
+        return tidy_etr

@@ -16,12 +16,12 @@ def test_event_triggered_response():
     # Make an event triggered response 
     etr = event_triggered_response(
         data = df,
-        x = 'time',
+        t = 'time',
         y = 'sinusoid',
         event_times = np.arange(100),
         t_before = 1,
         t_after = 1,
-        step_size = 0.01,
+        output_sampling_rate = 10,
     )
 
     # Assert that the average value of the agrees with expectations
