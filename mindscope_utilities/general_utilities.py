@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 
-def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
+def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
     '''
     Slices a timeseries relative to a given set of event times
     to build an event-triggered response.
@@ -119,8 +119,8 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, out
 
         # get a slice of the input data surrounding each event time
         query_string = "{0} > (@event_time - @t_before) and {0} < (@event_time + @t_after)"  # NOQA E501
-        data_slice = data.query(query_string.format(x))
-        x_slice = data_slice[x] - event_time
+        data_slice = data.query(query_string.format(t))
+        t_slice = data_slice[t] - event_time
         y_slice = data_slice[y]
 
         # update our dictionary to have a new key defined as
@@ -131,7 +131,7 @@ def event_triggered_response(data, x, y, event_times, t_before=1, t_after=1, out
         data_dict.update({
             'event_{}_t={}'.format(event_number, event_time): np.interp(
                 data_dict['time'],
-                x_slice,
+                t_slice,
                 y_slice
             )
         })
