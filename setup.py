@@ -8,6 +8,7 @@ setup(name='mindscope_utilities',
     author_email='marinag@alleninstitute.org, dougo@alleninstitute.org',
     license='Allen Institute',
     install_requires=[
-        'allensdk==2.11.2'
+        'pytest',
+        'allensdk==2.11.2',
     ],
 )
