@@ -6,7 +6,7 @@ jobs:
       - run:
           command: |
             pip install flake8
-            flake8 visual_behavior
+            flake8 mindscope_utilities
           name: lint it up
 
   test-38: &linux-template
