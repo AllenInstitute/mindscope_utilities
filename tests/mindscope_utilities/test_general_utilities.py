@@ -21,7 +21,7 @@ def test_event_triggered_response():
         event_times = np.arange(100),
         t_before = 1,
         t_after = 1,
-        output_sampling_rate = 10,
+        output_sampling_rate = 100,
     )
 
     # Assert that the average value of the agrees with expectations
