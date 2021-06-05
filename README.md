@@ -33,4 +33,14 @@ pip install -e .
 
 # Testing
 
-# Contributors
+Tests are run on CircleCI on every github commit.
+
+Tests can be run locally by running the following at the command line:
+```
+flake8 mindscope_utilities
+pytest
+```
+
+# Level of Support
+
+We are planning on occasional updating this tool with no fixed schedule. Community involvement is encouraged through both issues and pull requests.
