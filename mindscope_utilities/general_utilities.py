@@ -120,7 +120,7 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
     for event_number, event_time in enumerate(np.array(event_times)):
 
         # get a slice of the input data surrounding each event time
-        data_slice = data.loc[event_time - t_before : event_time + t_after][y]
+        data_slice = data[y].loc[event_time - t_before : event_time + t_after]
 
         # update our dictionary to have a new key defined as
         # 'event_{EVENT NUMBER}_t={EVENT TIME}' and
