@@ -49,7 +49,7 @@ def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
             'timestamps': experiment.ophys_timestamps,
             'cell_roi_id': [cell_roi_id] * len(experiment.ophys_timestamps),
             'cell_specimen_id': [cell_specimen_id] * len(experiment.ophys_timestamps),  # noqa E501
-            'dff': experiment.dff_traces.loc[cell_specimen_id]['dff'] if cell_specimen_id in experiment.dff_traces.index else [np.nan] * len(experiment.ophys_timestamps),
+            'dff': experiment.dff_traces.loc[cell_specimen_id]['dff'] if cell_specimen_id in experiment.dff_traces.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
             'events': experiment.events.loc[cell_specimen_id]['events'] if cell_specimen_id in experiment.events.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
             'filtered_events': experiment.events.loc[cell_specimen_id]['filtered_events'] if cell_specimen_id in experiment.events.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
         })
