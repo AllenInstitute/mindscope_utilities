@@ -101,7 +101,6 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
             ax=ax
         )
     '''
-
     # set up a dictionary with key 'time' and
     # value as a linearly spaced time array
     step_size = 1/output_sampling_rate
@@ -115,13 +114,12 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
     }
 
     # iterate over all event times
+    data.set_index(t, inplace=True)
+
     for event_number, event_time in enumerate(np.array(event_times)):
 
         # get a slice of the input data surrounding each event time
-        query_string = "{0} > (@event_time - @t_before) and {0} < (@event_time + @t_after)"  # NOQA E501
-        data_slice = data.query(query_string.format(t))
-        t_slice = data_slice[t] - event_time
-        y_slice = data_slice[y]
+        data_slice = data[y].loc[event_time - t_before: event_time + t_after]
 
         # update our dictionary to have a new key defined as
         # 'event_{EVENT NUMBER}_t={EVENT TIME}' and
@@ -131,8 +129,8 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
         data_dict.update({
             'event_{}_t={}'.format(event_number, event_time): np.interp(
                 data_dict['time'],
-                t_slice,
-                y_slice
+                data_slice.index - event_time,
+                data_slice.values
             )
         })
 
@@ -163,6 +161,5 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
             .drop(columns=['variable'])
             .rename(columns={'value': y})
         )
-
         # return the tidy event triggered responses
         return tidy_etr
