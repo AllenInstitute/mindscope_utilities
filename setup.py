@@ -1,7 +1,8 @@
 from setuptools import setup
 
 setup(name='mindscope_utilities',
-    version='0.1.2',
+    version='0.1.3',
+    packages=['mindscope_utilities'],
     description='Utilities for loading, manipulating and visualizing data from the Allen Institute Mindscope program',
     url='https://github.com/AllenInstitute/mindscope_utilities',
     author='Allen Institute',
