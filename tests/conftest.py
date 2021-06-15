@@ -14,6 +14,8 @@ class SimulatedExperiment(object):
         list of cell specimen IDs
     cell_roi_ids : list of ints
         list of cell ROI IDs
+    valid_rois : list of bools
+        list of validity state for each ROI
     timestamps : list of floats
         measurement timestamps
     dff : list of lists/arrays of floats
@@ -30,13 +32,22 @@ class SimulatedExperiment(object):
     --------
     simulated AllenSDK BehaviorOphysExperiment object
     '''
-    def __init__(self, cell_specimen_ids, cell_roi_ids, timestamps, dff, events, filtered_events):
+    def __init__(self, cell_specimen_ids, cell_roi_ids, valid_rois, timestamps, dff, events, filtered_events):
+
         self.ophys_timestamps = np.array(timestamps)
+
+        self.cell_specimen_table = self.build_cell_specimen_table(
+            cell_specimen_ids,
+            cell_roi_ids,
+            valid_rois
+        )
+
         self.dff_traces = self.build_dff_traces(
             cell_specimen_ids,
             cell_roi_ids,
             dff
         )
+
         self.events = self.build_events(
             cell_specimen_ids,
             cell_roi_ids,
@@ -44,6 +55,15 @@ class SimulatedExperiment(object):
             filtered_events
         )
         
+    def build_cell_specimen_table(self, cell_specimen_ids, cell_roi_ids, valid_rois):
+        '''builds a cell_specimen_table dataframe'''
+        cell_specimen_table = pd.DataFrame({
+            'cell_specimen_id': cell_specimen_ids,
+            'cell_roi_id': cell_roi_ids,
+            'valid_roi': valid_rois,
+        })
+        return cell_specimen_table.set_index('cell_specimen_id')
+
     def build_dff_traces(self, cell_specimen_ids, cell_roi_ids, dff):
         '''builds a dff_traces dataframe'''
         dff_traces = pd.DataFrame({
@@ -69,10 +89,14 @@ class SimulatedExperiment(object):
 def simulated_experiment_fixture():
    # build a simulated experiment
     timestamps = np.arange(0, 1, 0.01)
-    cell_specimen_ids = [1, 2, 3]
+    cell_specimen_ids = [1, 2, 3, 4]
+    cell_roi_ids = [2*csid for csid in cell_specimen_ids]
+    valid_rois = [True, True, True, False]
+
     simulated_experiment = SimulatedExperiment(
         cell_specimen_ids = cell_specimen_ids,
-        cell_roi_ids = [2*csid for csid in cell_specimen_ids],
+        cell_roi_ids = cell_roi_ids,
+        valid_rois = valid_rois,
         timestamps = timestamps,
         dff = [np.sin(2*np.pi*timestamps + ii*0.5*np.pi) for ii, cell in enumerate(cell_specimen_ids)],
         events = [np.sin(4*np.pi*timestamps+ ii*0.5*np.pi) for ii, cell in enumerate(cell_specimen_ids)],
