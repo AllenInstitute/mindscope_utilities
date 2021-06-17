@@ -1,14 +1,14 @@
 import pandas as pd
 import numpy as np
-from mindscope_utilities import ophys
+from mindscope_utilities import visual_behavior_ophys
 
 
 def test_build_tidy_cell_df(simulated_experiment_fixture):
     '''
-    tests ophys.data_formatting.build_tidy_cell_df
+    tests visual_behavior_ophys.data_formatting.build_tidy_cell_df
     uses `simulated_experiment_fixture` defined in conftest.py
     '''
-    tidy_cell_df = ophys.build_tidy_cell_df(simulated_experiment_fixture)
+    tidy_cell_df = visual_behavior_ophys.build_tidy_cell_df(simulated_experiment_fixture)
 
     ans_1 = pd.DataFrame([{
         'timestamps': 0.5,
