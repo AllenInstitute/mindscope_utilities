@@ -12,6 +12,7 @@ def test_event_triggered_response():
         'time': t,
         'sinusoid': np.sin(2*np.pi*t)
     })
+    df_copy = df.copy(deep=True)
 
     # Make an event triggered response 
     etr = event_triggered_response(
@@ -30,3 +31,6 @@ def test_event_triggered_response():
     assert np.isclose(etr.query('time == 0.5')['sinusoid'].mean(), 0, rtol=0.01)
     assert np.isclose(etr.query('time == 0.75')['sinusoid'].mean(), -1, rtol=0.01)
     assert np.isclose(etr.query('time == 1')['sinusoid'].mean(), 0, rtol=0.01)
+
+    # Assert that the dataframe is unchanged
+    pd.testing.assert_frame_equal(df, df_copy)
