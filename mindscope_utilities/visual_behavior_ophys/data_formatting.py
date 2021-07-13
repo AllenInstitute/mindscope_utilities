@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 
 
 def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
