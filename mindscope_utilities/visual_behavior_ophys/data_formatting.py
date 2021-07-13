@@ -42,17 +42,24 @@ def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
     # iterate over each individual cell
     for idx, row in cell_specimen_table.iterrows():
         cell_specimen_id = row['cell_specimen_id']
-        cell_roi_id = row['cell_roi_id']
 
         # build a tidy dataframe for this cell
         cell_df = pd.DataFrame({
             'timestamps': experiment.ophys_timestamps,
-            'cell_roi_id': [cell_roi_id] * len(experiment.ophys_timestamps),
-            'cell_specimen_id': [cell_specimen_id] * len(experiment.ophys_timestamps),  # noqa E501
             'dff': experiment.dff_traces.loc[cell_specimen_id]['dff'] if cell_specimen_id in experiment.dff_traces.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
             'events': experiment.events.loc[cell_specimen_id]['events'] if cell_specimen_id in experiment.events.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
             'filtered_events': experiment.events.loc[cell_specimen_id]['filtered_events'] if cell_specimen_id in experiment.events.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
         })
+
+        # Make the cell_roi_id and cell_specimen_id columns categorical.
+        # This will reduce memory useage since the columns
+        # consist of many repeated values.
+        for cell_id in ['cell_roi_id', 'cell_specimen_id']:
+            cell_df[cell_id] = np.int32(row[cell_id])
+            cell_df[cell_id] = pd.Categorical(
+                cell_df[cell_id],
+                categories=cell_specimen_table[cell_id].unique()
+            )
 
         # append the dataframe for this cell to the list of cell dataframes
         list_of_cell_dfs.append(cell_df)

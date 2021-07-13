@@ -18,10 +18,12 @@ def test_build_tidy_cell_df(simulated_experiment_fixture):
         'events': 0.0,
         'filtered_events': 1.0
     }])
-    pd.testing.assert_frame_equal(
-        tidy_cell_df.query('cell_specimen_id == 1 and timestamps == 0.5').reset_index(drop=True),
-        ans_1
-    )
+    ans_1['cell_specimen_id'] = pd.Categorical(ans_1['cell_specimen_id'], categories=[1, 2, 3])
+    ans_1['cell_roi_id'] = pd.Categorical(ans_1['cell_roi_id'], categories=[2, 4, 6])
+    
+    cols = ['timestamps', 'cell_roi_id', 'cell_specimen_id', 'dff', 'events', 'cell_specimen_id']
+    actual_1 = tidy_cell_df.query('cell_specimen_id == 1 and timestamps == 0.5').reset_index(drop=True)
+    pd.testing.assert_frame_equal(actual_1[cols], ans_1[cols])
 
     ans_2 = pd.DataFrame([{
         'timestamps': 0.5,
@@ -31,7 +33,8 @@ def test_build_tidy_cell_df(simulated_experiment_fixture):
         'events': 1.0,
         'filtered_events': 0.0
     }])
-    pd.testing.assert_frame_equal(
-        tidy_cell_df.query('cell_specimen_id == 2 and timestamps == 0.5').reset_index(drop=True),
-        ans_2
-    )
+    ans_2['cell_specimen_id'] = pd.Categorical(ans_2['cell_specimen_id'], categories=[1, 2, 3])
+    ans_2['cell_roi_id'] = pd.Categorical(ans_2['cell_roi_id'], categories=[2, 4, 6])
+    actual_2 = tidy_cell_df.query('cell_specimen_id == 2 and timestamps == 0.5').reset_index(drop=True)
+    pd.testing.assert_frame_equal(actual_2[cols], ans_2[cols])
+
