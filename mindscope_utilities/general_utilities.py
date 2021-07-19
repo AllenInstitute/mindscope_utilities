@@ -163,3 +163,117 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
         )
         # return the tidy event triggered responses
         return tidy_etr
+
+def index_of_nearest_value(sample_times, event_times):
+    '''
+    The index of the nearest sample time for each event time.
+    Args:
+        sample_times (np.ndarray of float): sorted 1-d vector of sample timestamps
+        event_times (np.ndarray of float): 1-d vector of event timestamps
+    Returns
+        (np.ndarray of int) nearest sample time index for each event time
+    '''
+    insertion_ind = np.searchsorted(sample_times, event_times)
+    # is the value closer to data at insertion_ind or insertion_ind-1?
+    ind_diff = sample_times[insertion_ind] - event_times
+    ind_minus_one_diff = np.abs(sample_times[np.clip(insertion_ind - 1, 0, np.inf).astype(int)] - event_times)
+    return insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
+
+def slice_inds_and_offsets(ophys_times, event_times, window_around_timepoint_seconds, frame_rate=None):
+    '''
+    Get nearest indices to event times, plus ind offsets for slicing out a window around the event from the trace.
+    Args:
+        ophys_times (np.array): timestamps of ophys frames
+        event_times (np.array): timestamps of events around which to slice windows
+        window_around_timepoint_seconds (list): [start_offset, end_offset] for window
+        frame_rate (float): we shouldn't need this. leave none to infer from the ophys timestamps
+    '''
+    if frame_rate is None:
+        frame_rate = 1 / np.diff(ophys_times).mean()
+    event_indices = index_of_nearest_value(ophys_times, event_times)
+    trace_len = (window_around_timepoint_seconds[1] - window_around_timepoint_seconds[0]) * frame_rate
+    start_ind_offset = int(window_around_timepoint_seconds[0] * frame_rate)
+    end_ind_offset = int(start_ind_offset + trace_len)
+    trace_timebase = np.arange(start_ind_offset, end_ind_offset) / frame_rate
+    return event_indices, start_ind_offset, end_ind_offset, trace_timebase
+
+def eventlocked_traces(response_traces, event_indices, start_ind_offset, end_ind_offset):
+    '''
+    Extract trace for each cell, for each event-relative window.
+    Args:
+        dff_traces (np.ndarray): shape (nSamples, nCells) with dff traces for each cell
+        event_indices (np.ndarray): 1-d array of shape (nEvents) with closest sample ind for each event
+        start_ind_offset (int): Where to start the window relative to each event ind
+        end_ind_offset (int): Where to end the window relative to each event ind
+    Returns:
+        sliced_dataout (np.ndarray): shape (nSamples, nEvents, nCells)
+    '''
+    all_inds = event_indices + np.arange(start_ind_offset, end_ind_offset)[:, None]
+    sliced_dataout = response_traces.T[all_inds]
+    return sliced_dataout
+
+def get_response_xr(session, traces, timestamps, event_times, event_ids, trace_ids,
+                    window_around_timepoint_seconds=[-0.25, 0.75], frame_rate=None):
+    event_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(
+        ophys_times=timestamps,
+        event_times=event_times,
+        window_around_timepoint_seconds=window_around_timepoint_seconds,
+        frame_rate=frame_rate
+    )
+    sliced_dataout = eventlocked_traces(traces, event_indices, start_ind_offset, end_ind_offset)
+
+    eventlocked_traces_xr = xr.DataArray(
+        data=sliced_dataout,
+        dims=("eventlocked_timestamps", "trial_id", "trace_id"),
+        coords={
+            "eventlocked_timestamps": trace_timebase,
+            "trial_id": event_ids,
+            "trace_id": trace_ids
+        }
+    )
+
+    response_range = [0, 0.75] # in seconds
+    baseline_range = [-.25, 0] # in seconds
+
+    mean_response = eventlocked_traces_xr.loc[
+        {'eventlocked_timestamps': slice(*response_range)}
+    ].mean(['eventlocked_timestamps'])
+
+    mean_baseline = eventlocked_traces_xr.loc[
+        {'eventlocked_timestamps': slice(*baseline_range)}
+    ].mean(['eventlocked_timestamps'])
+
+    result = xr.Dataset({
+        'eventlocked_traces': eventlocked_traces_xr,
+        'mean_response': mean_response,
+        'mean_baseline': mean_baseline,
+    })
+
+    return result
+
+
+def get_response_df(response_xr):
+    '''
+    Smash things into df format if you want.
+    '''
+    traces = response_xr['eventlocked_traces']
+    mean_response = response_xr['mean_response']
+    mean_baseline = response_xr['mean_baseline']
+    stacked_traces = traces.stack(multi_index=('trial_id', 'trace_id')).transpose()
+    stacked_response = mean_response.stack(multi_index=('trial_id', 'trace_id')).transpose()
+    stacked_baseline = mean_baseline.stack(multi_index=('trial_id', 'trace_id')).transpose()
+
+    num_repeats = len(stacked_traces)
+    trace_timestamps = np.repeat(
+        stacked_traces.coords['eventlocked_timestamps'].data[np.newaxis, :],
+        repeats=num_repeats, axis=0)
+
+    df = pd.DataFrame({
+        'trial_id': stacked_traces.coords['trial_id'],
+        'trace_id': stacked_traces.coords['trace_id'],
+        'trace': list(stacked_traces.data),
+        'trace_timestamps': list(trace_timestamps),
+        'mean_response': stacked_response.data,
+        'baseline_response': stacked_baseline.data,
+    })
+    return df
