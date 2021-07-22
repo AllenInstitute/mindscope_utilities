@@ -165,7 +165,7 @@ def event_triggered_response(data, t, y, event_timestamps, t_before=1, t_after=1
         return tidy_etr
 
 
-def index_of_nearest_value(data_sample_timestamps, event_timestamps):
+def index_of_nearest_value(data_timestamps, event_timestamps):
     '''
     The index of the nearest sample time for each event time.
 
@@ -178,16 +178,16 @@ def index_of_nearest_value(data_sample_timestamps, event_timestamps):
 
     Returns:
     ___________
-    event_aligned_ts : np.ndarray of int
+    event_aligned_ind : np.ndarray of int
         An array of nearest sample time index for each event time.
     '''
-    insertion_ind = np.searchsorted(data_sample_timestamps, event_timestamps)
+    insertion_ind = np.searchsorted(data_timestamps, event_timestamps)
     # is the value closer to data at insertion_ind or insertion_ind-1?
     ind_diff = sample_timestamps[insertion_ind] - event_timestamps
-    ind_minus_one_diff = np.abs(sample_timestamps[np.clip(insertion_ind - 1, 0, np.inf).astype(int)] - event_times)
+    ind_minus_one_diff = np.abs(data_timestamps[np.clip(insertion_ind - 1, 0, np.inf).astype(int)] - event_timestamps)
 
-    event_aligned_ts = insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
-    return event_aligned_ts
+    event_aligned_ind = insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
+    return event_aligned_ind
 
 def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampling_rate=None):
     '''
