@@ -211,9 +211,9 @@ def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampl
     ___________
     event_indices : np.array
         Indices of events from the timestamps provided.
-    start_ind_offset :
-        end_ind_offset : int
-        trace_timebase :  np.array
+    start_ind_offset : int
+    end_ind_offset : int
+    trace_timebase :  np.array
 
     '''
     if sampling_rate is None:
@@ -227,7 +227,7 @@ def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampl
 
     return event_indices, start_ind_offset, end_ind_offset, trace_timebase
 
-def eventlocked_traces(response_traces, event_indices, start_ind_offset, end_ind_offset):
+def get_eventlocked_traces(response_traces, event_indices, start_ind_offset, end_ind_offset):
     '''
     Extract response traces for all cell in each event-relative window,
     using indices of event-aligned time windows from slice_inds_and_offsets function.
