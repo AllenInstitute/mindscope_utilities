@@ -169,7 +169,7 @@ def index_of_nearest_value(data_timestamps, event_timestamps):
     '''
     The index of the nearest sample time for each event time.
 
-    Paramaters:
+    Parameters:
     ___________
     sample_timestamps : np.ndarray of floats
         sorted 1-d vector of data sample timestamps.
@@ -221,7 +221,7 @@ def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampl
 
     event_indices = index_of_nearest_value(data_timestamps, event_timestamps)
     trace_len = (time_window[1] - time_window[0]) * sampling_rate
-    start_ind_offset = int(window_around_timepoint_seconds[0] * sampling_rate)
+    start_ind_offset = int(time_window[0] * sampling_rate)
     end_ind_offset = int(start_ind_offset + trace_len)
     trace_timebase = np.arange(start_ind_offset, end_ind_offset) / sampling_rate
 
