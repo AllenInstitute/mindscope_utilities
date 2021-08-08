@@ -5,9 +5,10 @@ from mindscope_utilities import index_of_nearest_value
 from mindscope_utilities import slice_inds_and_offsets
 from mindscope_utilities import get_eventlocked_traces
 
+
 def test_event_triggered_response():
     # make a time vector from -10 to 110
-    t = np.arange(-10,110,0.01)
+    t = np.arange(-10, 110, 0.01)
 
     # Make a dataframe with one column as time, and another column called 'sinusoid' defined as sin(2*pi*t)
     # The sinusoid column will have a period of 1
@@ -17,26 +18,30 @@ def test_event_triggered_response():
     })
     df_copy = df.copy(deep=True)
 
-    # Make an event triggered response 
+    # Make an event triggered response
     etr = event_triggered_response(
-        data = df,
-        t = 'timestamps',
-        y = 'sinusoid',
-        event_times = np.arange(100),
-        t_before = 1,
-        t_after = 1,
-        output_sampling_rate = 100,
+        data=df,
+        t='timestamps',
+        y='sinusoid',
+        event_times=np.arange(100),
+        t_before=1,
+        t_after=1,
+        output_sampling_rate=100,
     )
 
     # Assert that the average value of the agrees with expectations
     assert np.isclose(etr.query('time == 0')['sinusoid'].mean(), 0, rtol=0.01)
-    assert np.isclose(etr.query('time == 0.25')['sinusoid'].mean(), 1, rtol=0.01)
-    assert np.isclose(etr.query('time == 0.5')['sinusoid'].mean(), 0, rtol=0.01)
-    assert np.isclose(etr.query('time == 0.75')['sinusoid'].mean(), -1, rtol=0.01)
+    assert np.isclose(etr.query('time == 0.25')[
+                      'sinusoid'].mean(), 1, rtol=0.01)
+    assert np.isclose(etr.query('time == 0.5')[
+                      'sinusoid'].mean(), 0, rtol=0.01)
+    assert np.isclose(etr.query('time == 0.75')[
+                      'sinusoid'].mean(), -1, rtol=0.01)
     assert np.isclose(etr.query('time == 1')['sinusoid'].mean(), 0, rtol=0.01)
 
     # Assert that the dataframe is unchanged
     pd.testing.assert_frame_equal(df, df_copy)
+
 
 def test_index_of_nearest_value():
     # create two timestamps series, of data and of events, using different sampling
@@ -44,12 +49,13 @@ def test_index_of_nearest_value():
     event_timestamps = np.arange(5, 95, 0.31)
 
     # get aligned indices
-    event_aligned_ind = index_of_nearest_value(data_timestamps, event_timestamps)
+    event_indices = index_of_nearest_value(
+        data_timestamps, event_timestamps)
 
     # assert length of the array
-    assert len(event_aligned_ind) == 291
+    assert len(event_indices) == 291
     # assert at least one index
-    assert event_aligned_ind[15] == 877
+    assert event_indices[15] == 877
 
 
 def test_slice_inds_and_offsets():
@@ -68,7 +74,7 @@ def test_slice_inds_and_offsets():
     # assert indices's values
     assert start_ind_offset == -45
     assert end_ind_offset == 136
-    assert event_aligned_ind[15] == 877
+    assert event_indices[15] == 877
     assert np.isclose(trace_timebase[15], -0.33, rtol=0.01)
 
 
@@ -82,7 +88,8 @@ def test_get_eventlocked_traces():
     n_cells = 10
     response_traces = []
     for cell_ind in range(n_cells):
-        response_traces.append(np.random.exponential(1.5, len(data_timestamps)))
+        response_traces.append(
+            np.random.exponential(1.5, len(data_timestamps)))
     response_traces = np.array(response_traces)
 
     # get indices and offsets
@@ -92,7 +99,8 @@ def test_get_eventlocked_traces():
         time_window=time_window)
 
     # get sliced array from reponse_traces array
-    sliced_dataout = get_eventlocked_traces(response_traces, event_indices, start_ind_offset, end_ind_offset):
+    sliced_dataout = get_eventlocked_traces(
+        response_traces, event_indices, start_ind_offset, end_ind_offset)
 
     # assert sliced_dataout shape
     assert sliced_dataout.shape[0] == 181
@@ -100,9 +108,3 @@ def test_get_eventlocked_traces():
     assert sliced_dataout.shape[2] == 10
     # assert that mean of traces == scale value of the exponential distribution
     assert np.isclose(np.mean(sliced_dataout), 1.5, rtol=0.1)
-
-
-
-
-
-
