@@ -52,3 +52,25 @@ def test_index_of_nearest_value():
 
 
 def test_slice_inds_and_offsets():
+    # create two timestamps series, of data and of events, using different sampling
+    data_timestamps = np.arange(0, 100, 0.011)
+    event_timestamps = np.arange(5, 95, 0.31)
+    time_window = [-0.5, 1.5]
+
+    # get event indices and offsets
+    event_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(data_timestamps=data_timestamps,
+                                                                                             event_timestamps=event_timestamps,
+                                                                                             time_window=time_window)
+    # assert length of arrays
+    assert len(event_indices) == 291
+    assert len(trace_timebase) == 181
+    # assert indices's values
+    assert start_ind_offset == -45
+    assert end_ind_offset == 136
+    assert event_aligned_ind[15] == 877
+    assert np.isclose(trace_timebase[15], -0.33, rtol=0.01)
+
+
+
+
+
