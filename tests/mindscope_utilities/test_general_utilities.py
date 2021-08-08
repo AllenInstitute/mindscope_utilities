@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from mindscope_utilities import event_triggered_response
+from mindscope_utilities import index_of_nearest_value
+from mindscope_utilities import slice_inds_and_offsets
 
 def test_event_triggered_response():
     # make a time vector from -10 to 110
@@ -17,7 +19,7 @@ def test_event_triggered_response():
     # Make an event triggered response 
     etr = event_triggered_response(
         data = df,
-        t = 'time',
+        t = 'timestamps',
         y = 'sinusoid',
         event_times = np.arange(100),
         t_before = 1,
@@ -34,3 +36,19 @@ def test_event_triggered_response():
 
     # Assert that the dataframe is unchanged
     pd.testing.assert_frame_equal(df, df_copy)
+
+def test_index_of_nearest_value():
+    # create two timestamps series, of data and of events, using different sampling
+    data_timestamps = np.arange(0, 100, 0.011)
+    event_timestamps = np.arange(5, 95, 0.31)
+
+    # get aligned indices
+    event_aligned_ind = index_of_nearest_value(data_timestamps, event_timestamps)
+
+    # assert length of the array
+    assert len(event_aligned_ind) == 291
+    # assert at least one index
+    assert event_aligned_ind[15] == 877
+
+
+def test_slice_inds_and_offsets():
