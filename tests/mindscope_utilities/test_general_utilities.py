@@ -3,6 +3,7 @@ import pandas as pd
 from mindscope_utilities import event_triggered_response
 from mindscope_utilities import index_of_nearest_value
 from mindscope_utilities import slice_inds_and_offsets
+from mindscope_utilities import get_eventlocked_traces
 
 def test_event_triggered_response():
     # make a time vector from -10 to 110
@@ -69,6 +70,37 @@ def test_slice_inds_and_offsets():
     assert end_ind_offset == 136
     assert event_aligned_ind[15] == 877
     assert np.isclose(trace_timebase[15], -0.33, rtol=0.01)
+
+
+def test_get_eventlocked_traces():
+    # create two timestamps series, of data and of events, using different sampling
+    data_timestamps = np.arange(0, 100, 0.011)
+    event_timestamps = np.arange(5, 95, 0.31)
+    time_window = [-0.5, 1.5]
+
+    # create response_traces array
+    n_cells = 10
+    response_traces = []
+    for cell_ind in range(n_cells):
+        response_traces.append(np.random.exponential(1.5, len(data_timestamps)))
+    response_traces = np.array(response_traces)
+
+    # get indices and offsets
+    event_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(
+        data_timestamps=data_timestamps,
+        event_timestamps=event_timestamps,
+        time_window=time_window)
+
+    # get sliced array from reponse_traces array
+    sliced_dataout = get_eventlocked_traces(response_traces, event_indices, start_ind_offset, end_ind_offset):
+
+    # assert sliced_dataout shape
+    assert sliced_dataout.shape[0] == 181
+    assert sliced_dataout.shape[1] == 291
+    assert sliced_dataout.shape[2] == 10
+    # assert that mean of traces == scale value of the exponential distribution
+    assert np.isclose(np.mean(sliced_dataout), 1.5, rtol=0.1)
+
 
 
 
