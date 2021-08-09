@@ -186,8 +186,8 @@ def index_of_nearest_value(data_timestamps, event_timestamps):
     ind_diff = data_timestamps[insertion_ind] - event_timestamps
     ind_minus_one_diff = np.abs(data_timestamps[np.clip(insertion_ind - 1, 0, np.inf).astype(int)] - event_timestamps)
 
-    event_aligned_ind = insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
-    return event_aligned_ind
+    event_indices = insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
+    return event_indices
 
 def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampling_rate=None):
     '''
