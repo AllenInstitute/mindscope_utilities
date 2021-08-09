@@ -48,7 +48,7 @@ def event_triggered_response(data, t, y, event_timestamps, t_before=1, t_after=1
         if 'tidy'
             One column representing time
             One column representing event_number
-            One column representing event_time
+            One column representing event_timestamps
             One row per observation (# rows = len(time) x len(event_timestamps))
         if 'wide', output format will be:
             time as indices
@@ -118,7 +118,7 @@ def event_triggered_response(data, t, y, event_timestamps, t_before=1, t_after=1
 
     for event_number, event_timestamp in enumerate(np.array(event_timestamps)):
 
-        # get a slice of the input data surrounding each event time
+        # get a slice of the input data surrounding each event timestamps
         data_slice = data_time_indexed[y].loc[event_timestamp - t_before: event_timestamp + t_after]  # noqa: E501
 
         # update our dictionary to have a new key defined as
@@ -128,7 +128,7 @@ def event_triggered_response(data, t, y, event_timestamps, t_before=1, t_after=1
         # on the linearly spaced timestamps array
         data_dict.update({
             'event_{}_t={}'.format(event_number, event_timestamp): np.interp(
-                data_dict['timestamps'],
+                data_dict['event_timestamps'],
                 data_slice.index - event_timestamp,
                 data_slice.values
             )
@@ -179,7 +179,7 @@ def index_of_nearest_value(data_timestamps, event_timestamps):
     Returns:
     ___________
     event_aligned_ind : np.ndarray of int
-        An array of nearest sample time index for each event time.
+        An array of nearest sample time index for each event times.
     '''
     insertion_ind = np.searchsorted(data_timestamps, event_timestamps)
     # is the value closer to data at insertion_ind or insertion_ind-1?
