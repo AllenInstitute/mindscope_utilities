@@ -23,7 +23,7 @@ def test_event_triggered_response():
         data=df,
         t='timestamps',
         y='sinusoid',
-        event_times=np.arange(100),
+        event_timestamps=np.arange(100),
         t_before=1,
         t_after=1,
         output_sampling_rate=100,
