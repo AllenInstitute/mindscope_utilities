@@ -13,7 +13,7 @@ def test_event_triggered_response():
     # Make a dataframe with one column as time, and another column called 'sinusoid' defined as sin(2*pi*t)
     # The sinusoid column will have a period of 1
     df = pd.DataFrame({
-        'time': t,
+        'timestamps': t,
         'sinusoid': np.sin(2*np.pi*t)
     })
     df_copy = df.copy(deep=True)
@@ -30,14 +30,14 @@ def test_event_triggered_response():
     )
 
     # Assert that the average value of the agrees with expectations
-    assert np.isclose(etr.query('time == 0')['sinusoid'].mean(), 0, rtol=0.01)
-    assert np.isclose(etr.query('time == 0.25')[
+    assert np.isclose(etr.query('timestamps == 0')['sinusoid'].mean(), 0, rtol=0.01)
+    assert np.isclose(etr.query('timestamps == 0.25')[
                       'sinusoid'].mean(), 1, rtol=0.01)
-    assert np.isclose(etr.query('time == 0.5')[
+    assert np.isclose(etr.query('timestamps == 0.5')[
                       'sinusoid'].mean(), 0, rtol=0.01)
-    assert np.isclose(etr.query('time == 0.75')[
+    assert np.isclose(etr.query('timestamps == 0.75')[
                       'sinusoid'].mean(), -1, rtol=0.01)
-    assert np.isclose(etr.query('time == 1')['sinusoid'].mean(), 0, rtol=0.01)
+    assert np.isclose(etr.query('timestamps == 1')['sinusoid'].mean(), 0, rtol=0.01)
 
     # Assert that the dataframe is unchanged
     pd.testing.assert_frame_equal(df, df_copy)
