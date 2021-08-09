@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
-import xarray as xr
-from mindscope_utilities import slice_inds_and_offsets
-from mindscope_utilities import get_eventlocked_traces
+
 
 def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
     '''

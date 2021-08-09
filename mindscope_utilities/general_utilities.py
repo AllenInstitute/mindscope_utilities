@@ -184,10 +184,12 @@ def index_of_nearest_value(data_timestamps, event_timestamps):
     insertion_ind = np.searchsorted(data_timestamps, event_timestamps)
     # is the value closer to data at insertion_ind or insertion_ind-1?
     ind_diff = data_timestamps[insertion_ind] - event_timestamps
-    ind_minus_one_diff = np.abs(data_timestamps[np.clip(insertion_ind - 1, 0, np.inf).astype(int)] - event_timestamps)
+    ind_minus_one_diff = np.abs(data_timestamps[np.clip(
+        insertion_ind - 1, 0, np.inf).astype(int)] - event_timestamps)
 
     event_indices = insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
     return event_indices
+
 
 def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampling_rate=None):
     '''
@@ -223,9 +225,11 @@ def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampl
     trace_len = (time_window[1] - time_window[0]) * sampling_rate
     start_ind_offset = int(time_window[0] * sampling_rate)
     end_ind_offset = int(start_ind_offset + trace_len)
-    trace_timebase = np.arange(start_ind_offset, end_ind_offset) / sampling_rate
+    trace_timebase = np.arange(
+        start_ind_offset, end_ind_offset) / sampling_rate
 
     return event_indices, start_ind_offset, end_ind_offset, trace_timebase
+
 
 def get_eventlocked_traces(response_traces, event_indices, start_ind_offset, end_ind_offset):
     '''
@@ -248,6 +252,7 @@ def get_eventlocked_traces(response_traces, event_indices, start_ind_offset, end
     sliced_dataout :np.ndarray
         Sliced data traces (nSamples, nEvents, nCells)
     '''
-    all_inds = event_indices + np.arange(start_ind_offset, end_ind_offset)[:, None]
+    all_inds = event_indices + \
+        np.arange(start_ind_offset, end_ind_offset)[:, None]
     sliced_dataout = response_traces.T[all_inds]
     return sliced_dataout
