@@ -105,7 +105,7 @@ def event_triggered_response(data, t, y, event_timestamps, t_before=1, t_after=1
     # value as a linearly spaced timestamps array
     step_size = 1/output_sampling_rate
     data_dict = {
-        'event_timestamps': np.linspace(
+        'timestamps': np.linspace(
             -t_before,
             t_after,
             int((t_before + t_after) / step_size + int(include_endpoint)),
@@ -128,7 +128,7 @@ def event_triggered_response(data, t, y, event_timestamps, t_before=1, t_after=1
         # on the linearly spaced timestamps array
         data_dict.update({
             'event_{}_t={}'.format(event_number, event_timestamp): np.interp(
-                data_dict['event_timestamps'],
+                data_dict['timestamps'],
                 data_slice.index - event_timestamp,
                 data_slice.values
             )
