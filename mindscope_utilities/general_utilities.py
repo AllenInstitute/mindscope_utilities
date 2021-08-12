@@ -118,7 +118,8 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
         # add an extra step if including endpoint
         n_steps += 1
 
-    t_array = np.linspace(-t_before, t_after, int(n_steps), endpoint=include_endpoint)
+    t_array = np.linspace(-t_before, t_after, int(n_steps),
+                          endpoint=include_endpoint)
     data_dict = {'time': t_array}
 
     # iterate over all event times
