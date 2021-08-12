@@ -104,14 +104,22 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
     # set up a dictionary with key 'time' and
     # value as a linearly spaced time array
     step_size = 1/output_sampling_rate
-    data_dict = {
-        'time': np.linspace(
-            -t_before,
-            t_after,
-            int((t_before + t_after) / step_size + int(include_endpoint)),
-            endpoint=include_endpoint
-        )
-    }
+    # define a time array
+    n_steps = (t_before + t_after) / step_size
+    if n_steps != int(n_steps):
+        # if the number of steps isn't an int, that means it isn't possible
+        # to end on the desired t_after using the defined sampling rate
+        # we need to round down and include the endpoint
+        n_steps = int(n_steps)
+        t_after = -1*t_before + n_steps*step_size
+        include_endpoint = True
+
+    if include_endpoint:
+        # add an extra step if including endpoint
+        n_steps += 1
+
+    t_array = np.linspace(-t_before, t_after, int(n_steps), endpoint=include_endpoint)
+    data_dict = {'time': t_array}
 
     # iterate over all event times
     data_time_indexed = data.set_index(t, inplace=False)
