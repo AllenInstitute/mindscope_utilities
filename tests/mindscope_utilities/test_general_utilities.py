@@ -1,6 +1,121 @@
 import numpy as np
 import pandas as pd
-from mindscope_utilities import event_triggered_response
+from mindscope_utilities import event_triggered_response, get_time_array
+
+def test_get_time_array_with_sampling_rate():
+    '''
+    tests the `get_time_array` function while passing a sampling_rate argument
+    '''
+    # this should give [-1, 1) with steps of 0.5, exclusive of the endpoint
+    t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        sampling_rate=2,
+        include_endpoint=False
+    )
+    assert (t_array == np.array([-1., -0.5,  0.,  0.5])).all()
+
+    # this should give [-1, 1] with steps of 0.5, inclusive of the endpoint
+    t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        sampling_rate=2,
+        include_endpoint=True
+    )
+    assert (t_array == np.array([-1., -0.5,  0.,  0.5, 1.0])).all()
+
+    # this should give [-1, 0.75) with steps of 0.5.
+    # becuase the desired range (1.75) is not evenly divisible by the step size (0.5), the array should end before the desired endpoint
+    t_array = get_time_array(
+        t_start=-1, 
+        t_end=0.75, 
+        sampling_rate=2,
+        include_endpoint=False
+    )
+    assert (t_array == np.array([-1., -0.5,  0.,  0.5])).all()
+
+    # this should give [-1, 0.75) with steps of 0.5.
+    # becuase the desired range (1.75) is not evenly divisible by the step size (0.5), the array should end before the desired endpoint
+    t_array = get_time_array(
+        t_start=-1, 
+        t_end=0.75, 
+        sampling_rate=2,
+        include_endpoint=True
+    )
+    assert (t_array == np.array([-1., -0.5,  0.,  0.5])).all()
+
+
+def test_get_time_array_with_step_size():
+    '''
+    tests the `get_time_array` function while passing a step_size argument
+    '''
+    # this should give [-1, 1) with steps of 0.5, exclusive of the endpoint
+    t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        step_size=0.5,
+        include_endpoint=False
+    )
+    assert (t_array == np.array([-1., -0.5,  0.,  0.5])).all()
+
+    # this should give [-1, 1] with steps of 0.5, inclusive of the endpoint
+    t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        step_size=0.5,
+        include_endpoint=True
+    )
+    assert (t_array == np.array([-1., -0.5,  0.,  0.5, 1.0])).all()
+
+    # this should give [-1, 0.75) with steps of 0.5.
+    # becuase the desired range (1.75) is not evenly divisible by the step size (0.5), the array should end before the desired endpoint
+    t_array = get_time_array(
+        t_start=-1, 
+        t_end=0.75, 
+        step_size=0.5,
+        include_endpoint=False
+    )
+    assert (t_array == np.array([-1., -0.5,  0.,  0.5])).all()
+
+    # this should give [-1, 0.75) with steps of 0.5.
+    # becuase the desired range (1.75) is not evenly divisible by the step size (0.5), the array should end before the desired endpoint
+    t_array = get_time_array(
+        t_start=-1, 
+        t_end=0.75, 
+        step_size=0.5,
+        include_endpoint=True
+    )
+    assert (t_array == np.array([-1., -0.5,  0.,  0.5])).all()
+
+
+def test_get_time_array_assertion_errors():
+    '''
+    tests that assertion errors are working correctly in `get_time_array`
+    '''
+    try:
+        t_array = get_time_array(
+            t_start=-1, 
+            t_end=1, 
+            sampling_rate=2,
+            step_size=0.5,
+            include_endpoint=False
+        )
+        assert False, 'it should not be possible to pass both sampling_rate and step_size'
+    except AssertionError:
+        # expect the AssertionError, so this test should pass
+        pass
+
+    try:
+        t_array = get_time_array(
+            t_start=-1, 
+            t_end=1, 
+            include_endpoint=False
+        )
+        assert False, 'must pass either a sampling_rate or step_size'
+    except AssertionError:
+        # expect the AssertionError, so this test should pass
+        pass
+
 
 def test_event_triggered_response():
     # make a time vector from -10 to 110

@@ -2,7 +2,113 @@ import pandas as pd
 import numpy as np
 
 
-def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
+def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_endpoint=True):  # NOQA E501
+    '''
+    A function to get a time array between two specified timepoints at a defined sampling rate  # NOQA E501
+    Deals with possibility of time range not being evenly divisible by desired sampling rate  # NOQA E501
+    Uses np.linspace instead of np.arange given decimal precision issues with np.arange (see np.arange documentation for details)  # NOQA E501
+
+    Parameters:
+    -----------
+    t_start : float
+        start time for array
+    t_end : float
+        end time for array
+    sampling_rate : float
+        desired sampling of array
+        Note: user must specify either sampling_rate or step_size, not both
+    step_size : float
+        desired step size of array
+        Note: user must specify either sampling_rate or step_size, not both
+    include_endpoint : Boolean
+        Passed to np.linspace to calculate relative time
+        If True, stop is the last sample. Otherwise, it is not included.
+            Default is True
+
+    Returns:
+    --------
+    numpy.array
+        an array of timepoints at the desired sampling rate
+
+    Examples:
+    ---------
+    get a time array exclusive of the endpoint
+    >>> t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        step_size=0.5,
+        include_endpoint=False
+    )
+
+    np.array([-1., -0.5,  0.,  0.5])
+
+
+    get a time array inclusive of the endpoint
+    >>> t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        step_size=0.5,
+        include_endpoint=False
+    )
+
+    np.array([-1., -0.5,  0.,  0.5, 1.0])
+
+
+    get a time array where the range can't be evenly divided by the desired step_size
+    in this case, the time array includes the last timepoint before the desired endpoint
+    >>> t_array = get_time_array(
+        t_start=-1, 
+        t_end=0.75, 
+        step_size=0.5,
+        include_endpoint=False
+    )
+
+    np.array([-1., -0.5,  0.,  0.5])
+
+
+    Instead of passing the step_size, we can pass the sampling rate
+    >>> t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        sampling_rate=2,
+        include_endpoint=False
+    )
+
+    np.array([-1., -0.5,  0.,  0.5])
+    '''
+    assert sampling_rate is not None or step_size is not None, 'must specify either sampling_rate or step_size'  # NOQA E501
+    assert sampling_rate is None or step_size is None, 'cannot specify both sampling_rate and step_size'  # NOQA E501
+
+    # value as a linearly spaced time array
+    if not step_size:
+        step_size = 1/sampling_rate
+    # define a time array
+    n_steps = (t_end - t_start) / step_size
+    if n_steps != int(n_steps):
+        # if the number of steps isn't an int, that means it isn't possible
+        # to end on the desired t_after using the defined sampling rate
+        # we need to round down and include the endpoint
+        n_steps = int(n_steps)
+        t_end_adjusted = t_start + n_steps*step_size
+        include_endpoint = True
+    else:
+        t_end_adjusted = t_end
+
+    if include_endpoint:
+        # add an extra step if including endpoint
+        n_steps += 1
+
+    t_array = np.linspace(
+        t_start,
+        t_end_adjusted,
+        int(n_steps),
+        endpoint=include_endpoint
+    )
+
+    return t_array
+
+
+def event_triggered_response(data, t, y, event_times, t_before=0, t_after=1, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
     '''
     Slices a timeseries relative to a given set of event times
     to build an event-triggered response.
@@ -102,16 +208,13 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
         )
     '''
     # set up a dictionary with key 'time' and
-    # value as a linearly spaced time array
-    step_size = 1/output_sampling_rate
-    data_dict = {
-        'time': np.linspace(
-            -t_before,
-            t_after,
-            int((t_before + t_after) / step_size + int(include_endpoint)),
-            endpoint=include_endpoint
-        )
-    }
+    t_array = get_time_array(
+        t_start=-1*t_before,
+        t_end=t_after,
+        sampling_rate=output_sampling_rate,
+        include_endpoint=include_endpoint,
+    )
+    data_dict = {'time': t_array}
 
     # iterate over all event times
     data_time_indexed = data.set_index(t, inplace=False)
