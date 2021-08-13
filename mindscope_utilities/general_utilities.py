@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 
 
-def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_endpoint=True):
+def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_endpoint=True):  # NOQA E501
     '''
-    A function to get a time array between two specified timepoints at a defined sampling rate
-    Deals with possibility of time range not being evenly divisible by desired sampling rate
+    A function to get a time array between two specified timepoints at a defined sampling rate  # NOQA E501
+    Deals with possibility of time range not being evenly divisible by desired sampling rate  # NOQA E501
+    Uses np.linspace instead of np.arange given decimal precision issues with np.arange (see np.arange documentation for details)  # NOQA E501
 
     Parameters:
     -----------
@@ -28,9 +29,55 @@ def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_e
     --------
     numpy.array
         an array of timepoints at the desired sampling rate
+
+    Examples:
+    ---------
+    get a time array exclusive of the endpoint
+    >>> t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        step_size=0.5,
+        include_endpoint=False
+    )
+
+    np.array([-1., -0.5,  0.,  0.5])
+
+
+    get a time array inclusive of the endpoint
+    >>> t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        step_size=0.5,
+        include_endpoint=False
+    )
+
+    np.array([-1., -0.5,  0.,  0.5, 1.0])
+
+
+    get a time array where the range can't be evenly divided by the desired step_size
+    in this case, the time array includes the last timepoint before the desired endpoint
+    >>> t_array = get_time_array(
+        t_start=-1, 
+        t_end=0.75, 
+        step_size=0.5,
+        include_endpoint=False
+    )
+
+    np.array([-1., -0.5,  0.,  0.5])
+
+
+    Instead of passing the step_size, we can pass the sampling rate
+    >>> t_array = get_time_array(
+        t_start=-1, 
+        t_end=1, 
+        sampling_rate=2,
+        include_endpoint=False
+    )
+
+    np.array([-1., -0.5,  0.,  0.5])
     '''
-    assert sampling_rate is not None or step_size is not None, 'must specify either sampling_rate or step_size'
-    assert sampling_rate is None or step_size is None, 'cannot specify both sampling_rate and step_size'
+    assert sampling_rate is not None or step_size is not None, 'must specify either sampling_rate or step_size'  # NOQA E501
+    assert sampling_rate is None or step_size is None, 'cannot specify both sampling_rate and step_size'  # NOQA E501
 
     # value as a linearly spaced time array
     if not step_size:
