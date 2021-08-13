@@ -226,7 +226,7 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     assert t_after is not None or t_end is not None, 'must pass either t_start or t_before'  # noqa: E501
 
     assert t_before is None or t_start is None, 'cannot pass both t_start and t_before'  # noqa: E501
-    assert t_after is None or t_end is None, 'cannot pass both t_start and t_before'  # noqa: E501
+    assert t_after is None or t_end is None, 'cannot pass both t_after and t_end'  # noqa: E501
 
     # assign time values to t_start and t_end
     if t_start is None:
