@@ -2,7 +2,66 @@ import pandas as pd
 import numpy as np
 
 
-def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
+def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_endpoint=True):
+    '''
+    A function to get a time array between two specified timepoints at a defined sampling rate
+    Deals with possibility of time range not being evenly divisible by desired sampling rate
+
+    Parameters:
+    -----------
+    t_start : float
+        start time for array
+    t_end : float
+        end time for array
+    sampling_rate : float
+        desired sampling of array
+        Note: user must specify either sampling_rate or step_size, not both
+    step_size : float
+        desired step size of array
+        Note: user must specify either sampling_rate or step_size, not both
+    include_endpoint : Boolean
+        Passed to np.linspace to calculate relative time
+        If True, stop is the last sample. Otherwise, it is not included.
+            Default is True
+
+    Returns:
+    --------
+    numpy.array
+        an array of timepoints at the desired sampling rate
+    '''
+    assert sampling_rate is not None or step_size is not None, 'must specify either sampling_rate or step_size'
+    assert sampling_rate is None or step_size is None, 'cannot specify both sampling_rate and step_size'
+
+    # value as a linearly spaced time array
+    if not step_size:
+        step_size = 1/sampling_rate
+    # define a time array
+    n_steps = (t_end - t_start) / step_size
+    if n_steps != int(n_steps):
+        # if the number of steps isn't an int, that means it isn't possible
+        # to end on the desired t_after using the defined sampling rate
+        # we need to round down and include the endpoint
+        n_steps = int(n_steps)
+        t_end_adjusted = t_start + n_steps*step_size
+        include_endpoint = True
+    else:
+        t_end_adjusted = t_end
+
+    if include_endpoint:
+        # add an extra step if including endpoint
+        n_steps += 1
+
+    t_array = np.linspace(
+        t_start,
+        t_end_adjusted,
+        int(n_steps),
+        endpoint=include_endpoint
+    )
+
+    return t_array
+
+
+def event_triggered_response(data, t, y, event_times, t_before=0, t_after=1, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
     '''
     Slices a timeseries relative to a given set of event times
     to build an event-triggered response.
@@ -102,24 +161,12 @@ def event_triggered_response(data, t, y, event_times, t_before=1, t_after=1, out
         )
     '''
     # set up a dictionary with key 'time' and
-    # value as a linearly spaced time array
-    step_size = 1/output_sampling_rate
-    # define a time array
-    n_steps = (t_before + t_after) / step_size
-    if n_steps != int(n_steps):
-        # if the number of steps isn't an int, that means it isn't possible
-        # to end on the desired t_after using the defined sampling rate
-        # we need to round down and include the endpoint
-        n_steps = int(n_steps)
-        t_after = -1*t_before + n_steps*step_size
-        include_endpoint = True
-
-    if include_endpoint:
-        # add an extra step if including endpoint
-        n_steps += 1
-
-    t_array = np.linspace(-t_before, t_after, int(n_steps),
-                          endpoint=include_endpoint)
+    t_array = get_time_array(
+        t_start=-1*t_before,
+        t_end=t_after,
+        sampling_rate=output_sampling_rate,
+        include_endpoint=include_endpoint,
+    )
     data_dict = {'time': t_array}
 
     # iterate over all event times
