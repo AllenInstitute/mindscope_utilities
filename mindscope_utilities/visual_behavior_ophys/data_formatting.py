@@ -69,3 +69,42 @@ def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
 
     # return the tidy dataframe
     return tidy_df
+
+
+def get_event_timestamps(stimulus_presentations_df, event_type='all', onset='start_time'):
+    '''
+    Gets timestamps of events of interest from the stimulus_resentations df.
+
+    Parameters:
+    ___________
+    stimulus_presentations_df: Pandas.DataFrame
+        Output of stimulus_presentations with stimulus trial metadata
+    event_type: str
+        Event of interest. Event_type can be any column in the stimulus_presentations_df,
+        including 'omissions' or 'change'. Default is 'all', gets all trials
+    onset: str
+        optons: 'start_time' - onset of the stimulus, 'stop_time' - offset of the stimulus
+        stimulus_presentations_df has a multiple timestamps to align data to. Default = 'start_time'.
+
+    Returns:
+        event_times: array
+        event_ids: array
+    --------
+    '''
+    if event_type == 'all':
+        event_times = stimulus_presentations_df[onset]
+        event_ids = stimulus_presentations_df.index.values
+    elif event_type == 'images':
+        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False][onset]
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False].index.values
+    elif event_type == 'omissions' or event_type == 'omitted':
+        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == True][onset]
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == True].index.values
+    elif event_type == 'changes' or event_type == 'is_change':
+        event_times = stimulus_presentations_df[stimulus_presentations_df['is_change'] == True][onset]
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['is_change'] == True].index.values
+    else:
+        event_times = stimulus_presentations_df[stimulus_presentations_df[event_type] == True][onset]
+        event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type] == True].index.values
+
+    return event_times, event_ids
