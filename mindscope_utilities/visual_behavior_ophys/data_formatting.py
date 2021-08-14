@@ -108,3 +108,79 @@ def get_event_timestamps(stimulus_presentations_df, event_type='all', onset='sta
         event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type] == True].index.values
 
     return event_times, event_ids
+
+
+def get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time_window=[-3, 3],
+                             interpolate=True, **kargs):
+    '''
+    Parameters:
+    ___________
+    experiment: obj
+        AllenSDK BehaviorOphysExperiment object
+        A BehaviorOphysExperiment instance
+        See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_experiment.py  # noqa E501
+    data_type: str
+        neural data type to extract, options are: dff (default), events, filtered_events
+    event_type: str
+        event type to align to, which can be found in columns of experiment.stimulus_presentations df.
+        options are: 'all' (default) - gets all stimulus trials
+                     'images' - gets only image presentations (changes and not changes)
+                     'omissions' - gets only trials with omitted stimuli
+                     'changes' - get only trials of image changes
+    time_window: array
+        array of two int or floats indicating the time window on sliced data, default = [-3, 3]
+    interpolate: bool
+        type of alignment. If True (default) - interpolates neural data to align timestamps
+        with stimulus presentations. If False - shifts data to the nearest timestamps (currently unavailable)
+    kwargs: key, value mappings
+        Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
+        for interpolation method such as output_sampling_rate and include_endpoint.
+    '''
+
+    # load neural data
+    neural_data = ophys.build_tidy_cell_df(experiment)
+
+    # load stimulus_presentations table
+    stimulus_presentations_df = experiment.stimulus_presentations
+
+    # get event times and event ids (original order in the stimulus flow)
+    event_times, event_ids = get_event_timestamps(stimulus_presentations_df, event_type)
+
+    # all cell specimen ids in an experiment
+    cell_ids = np.unique(neural_data['cell_specimen_id'].values)
+
+    # collect aligned data
+    sliced_dataout = []
+
+    # align neural data using interpolation method
+    for cell_id in tqdm(cell_ids):
+        etr = mindscope_utilities.event_triggered_response(
+            data=neural_data[neural_data['cell_specimen_id'] == cell_id],
+            t='timestamps',
+            y=data_type,
+            event_times=event_times,
+            t_before=time_window[0],
+            t_after=time_window[1],
+            output_format='wide',
+            **kargs
+        )
+
+        # get timestamps array
+        trace_timebase = etr.index.values
+
+        # collect aligned data from all cell, all trials into one array
+        sliced_dataout.append(etr.transpose().values)
+
+    # convert to xarray
+    sliced_dataout = np.array(sliced_dataout)
+    stimulus_response_xr = xr.DataArray(
+        data=sliced_dataout,
+        dims=('cell_specimen_id', 'trial_id', 'eventlocked_timestamps'),
+        coords={
+            'eventlocked_timestamps': trace_timebase,
+            'trial_id': event_ids,
+            'cell_specimen_id': cell_ids
+        }
+    )
+
+    return stimulus_response_xr
