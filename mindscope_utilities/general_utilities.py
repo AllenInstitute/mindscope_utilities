@@ -108,7 +108,7 @@ def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_e
     return t_array
 
 
-def event_triggered_response(data, t, y, event_times, t_before=0, t_after=1, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
+def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
     '''
     Slices a timeseries relative to a given set of event times
     to build an event-triggered response.
@@ -136,12 +136,26 @@ def event_triggered_response(data, t, y, event_times, t_before=0, t_after=1, out
         Times of events of interest.
         Values in column specified by `y` will be sliced and interpolated
             relative to these times
+    t_start : float
+        start time relative to each event for desired time window
+        e.g.:   t_start = -1 would start the window 1 second before each
+                t_start = 1 would start the window 1 second after each event
+        Note: cannot pass both t_start and t_before
     t_before : float
         time before each of event of interest to include in each slice
-            (in same units as `t` column)
+        e.g.:   t_before = 1 would start the window 1 second before each event
+                t_before = -1 would start the window 1 second after each event
+        Note: cannot pass both t_start and t_before
+    t_end : float
+        end time relative to each event for desired time window
+        e.g.:   t_end = 1 would end the window 1 second after each event
+                t_end = -1 would end the window 1 second before each event
+        Note: cannot pass both t_end and t_after
     t_after : float
         time after each event of interest to include in each slice
-            (in same units as `t` column)
+        e.g.:   t_after = 1 would start the window 1 second after each event
+                t_after = -1 would start the window 1 second before each event
+        Note: cannot pass both t_end and t_after
     output_sampling_rate : float
         desired sampling of output
             (input data will be interpolated to this sampling rate)
@@ -191,8 +205,8 @@ def event_triggered_response(data, t, y, event_times, t_before=0, t_after=1, out
             x = 'time',
             y = 'noisy_sinusoid',
             event_times = np.arange(100),
-            t_before = 1,
-            t_after = 1,
+            t_start = -1,
+            t_end = 1,
             output_sampling_rate = 100
         )
     Then use seaborn to view the result
@@ -207,10 +221,26 @@ def event_triggered_response(data, t, y, event_times, t_before=0, t_after=1, out
             ax=ax
         )
     '''
+    # ensure that non-conflicting time values are passed
+    assert t_before is not None or t_start is not None, 'must pass either t_start or t_before'  # noqa: E501
+    assert t_after is not None or t_end is not None, 'must pass either t_start or t_before'  # noqa: E501
+
+    assert t_before is None or t_start is None, 'cannot pass both t_start and t_before'  # noqa: E501
+    assert t_after is None or t_end is None, 'cannot pass both t_after and t_end'  # noqa: E501
+
+    # assign time values to t_start and t_end
+    if t_start is None:
+        t_start = -1*t_before
+    if t_end is None:
+        t_end = t_after
+
+    # ensure that t_end is greater than t_start
+    assert t_end > t_start, 'must define t_end to be greater than t_start'
+
     # set up a dictionary with key 'time' and
     t_array = get_time_array(
-        t_start=-1*t_before,
-        t_end=t_after,
+        t_start=t_start,
+        t_end=t_end,
         sampling_rate=output_sampling_rate,
         include_endpoint=include_endpoint,
     )
@@ -222,7 +252,7 @@ def event_triggered_response(data, t, y, event_times, t_before=0, t_after=1, out
     for event_number, event_time in enumerate(np.array(event_times)):
 
         # get a slice of the input data surrounding each event time
-        data_slice = data_time_indexed[y].loc[event_time - t_before: event_time + t_after]  # noqa: E501
+        data_slice = data_time_indexed[y].loc[event_time + t_start: event_time + t_end]  # noqa: E501
 
         # update our dictionary to have a new key defined as
         # 'event_{EVENT NUMBER}_t={EVENT TIME}' and
