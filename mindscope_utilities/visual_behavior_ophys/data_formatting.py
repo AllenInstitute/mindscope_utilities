@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
-
+import xarray as xr
+from tqdm import tqdm
+import mindscope_utilities
 
 def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
     '''
@@ -95,7 +97,7 @@ def get_event_timestamps(stimulus_presentations_df, event_type='all', onset='sta
         event_times = stimulus_presentations_df[onset]
         event_ids = stimulus_presentations_df.index.values
     elif event_type == 'images':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False][onset]
+        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False] [onset]
         event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False].index.values
     elif event_type == 'omissions' or event_type == 'omitted':
         event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == True][onset]
@@ -111,7 +113,7 @@ def get_event_timestamps(stimulus_presentations_df, event_type='all', onset='sta
 
 
 def get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time_window=[-3, 3],
-                             interpolate=True, **kargs):
+                             interpolate=True, compute_means=True, **kargs):
     '''
     Parameters:
     ___________
@@ -132,13 +134,22 @@ def get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time
     interpolate: bool
         type of alignment. If True (default) - interpolates neural data to align timestamps
         with stimulus presentations. If False - shifts data to the nearest timestamps (currently unavailable)
+    compute_menas: bool
+
     kwargs: key, value mappings
         Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
         for interpolation method such as output_sampling_rate and include_endpoint.
+
+    Returns:
+    __________
+    stimulus_response_xr: xarray
+        Xarray of aligned neural data with multiple dimentions: cell_specimen_id,
+        'eventlocked_timestamps', and 'trial_id'
+
     '''
 
     # load neural data
-    neural_data = ophys.build_tidy_cell_df(experiment)
+    neural_data = build_tidy_cell_df(experiment)
 
     # load stimulus_presentations table
     stimulus_presentations_df = experiment.stimulus_presentations
@@ -182,5 +193,34 @@ def get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time
             'cell_specimen_id': cell_ids
         }
     )
+
+    if compute_means is True:
+        stimulus_response_xr = compute_means_xr(stimulus_response_xr)
+
+    return stimulus_response_xr
+
+def compute_means_xr(stimulus_response_xr, time_window):
+    '''
+
+    :param stimulus_response_xr:
+    :param time_window:
+    :return:
+    '''
+    response_range = [0, time_window[1]]
+    baseline_range = [time_window[0], 0]
+
+    mean_response = stimulus_response_xr.loc[
+        {'eventlocked_timestamps': slice(*response_range)}
+    ].mean(['eventlocked_timestamps'])
+
+    mean_baseline = stimulus_response_xr.loc[
+        {'eventlocked_timestamps': slice(*baseline_range)}
+    ].mean(['eventlocked_timestamps'])
+
+    stimulus_response_xr = xr.Dataset({
+        'eventlocked_traces': stimulus_response_xr,
+        'mean_response': mean_response,
+        'mean_baseline': mean_baseline,
+    })
 
     return stimulus_response_xr
