@@ -170,8 +170,8 @@ def get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time
             t='timestamps',
             y=data_type,
             event_times=event_times,
-            t_before=time_window[0],
-            t_after=time_window[1],
+            t_start=time_window[0],
+            t_end=time_window[1],
             output_format='wide',
             **kargs
         )
