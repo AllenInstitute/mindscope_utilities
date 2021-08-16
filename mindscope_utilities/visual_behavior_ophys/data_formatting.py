@@ -195,7 +195,7 @@ def get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time
     )
 
     if compute_means is True:
-        stimulus_response_xr = compute_means_xr(stimulus_response_xr)
+        stimulus_response_xr = compute_means_xr(stimulus_response_xr, time_window=time_window)
 
     return stimulus_response_xr
 
