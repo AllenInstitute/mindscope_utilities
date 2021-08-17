@@ -381,9 +381,9 @@ def get_stimulus_response_df(ophys_experiment,
 def add_rewards_to_stimulus_presentations(
     stimulus_presentations,
     rewards,
-    range_relative_to_stimulus_start=[
-        0,
-        0.75]):
+    time_window=[
+        -3,
+        3]):
     '''
     Append a column to stimulus_presentations which contains the timestamps of rewards that occur
     in a range relative to the onset of the stimulus.
@@ -392,7 +392,7 @@ def add_rewards_to_stimulus_presentations(
         stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
             Must contain: 'start_time'
         rewards (pd.DataFrame): rewards dataframe. Must contain 'timestamps'
-        range_relative_to_stimulus_start (list with 2 elements): start and end of the range
+        time_window (list with 2 elements): start and end of the range
             relative to the start of each stimulus to average the running speed.
     Returns:
         stimulus_presentations with a new column called "reward" that contains
@@ -419,9 +419,9 @@ def add_rewards_to_stimulus_presentations(
     rewards_each_stim = stimulus_presentations.apply(
         lambda row: reward_times[
             ((reward_times > row["start_time"] +
-              range_relative_to_stimulus_start[0]) & (
+              time_window[0]) & (
                 reward_times < row["start_time"] +
-                range_relative_to_stimulus_start[1]))],
+                time_window[1]))],
         axis=1,
     )
     stimulus_presentations["rewards"] = rewards_each_stim
@@ -431,9 +431,9 @@ def add_rewards_to_stimulus_presentations(
 def add_licks_to_stimulus_presentations(
     stimulus_presentations,
     licks,
-    range_relative_to_stimulus_start=[
-        0,
-        0.75]):
+    time_window=[
+        -3,
+        3]):
     '''
     Append a column to stimulus_presentations which contains the timestamps of licks that occur
     in a range relative to the onset of the stimulus.
@@ -442,7 +442,7 @@ def add_licks_to_stimulus_presentations(
         stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
             Must contain: 'start_time'
         licks (pd.DataFrame): lick dataframe. Must contain 'timestamps'
-        range_relative_to_stimulus_start (list with 2 elements): start and end of the range
+        time_window (list with 2 elements): start and end of the range
             relative to the start of each stimulus to average the running speed.
     Returns:
         stimulus_presentations with a new column called "licks" that contains
@@ -470,9 +470,9 @@ def add_licks_to_stimulus_presentations(
     licks_each_stim = stimulus_presentations.apply(
         lambda row: lick_times[
             ((lick_times > row["start_time"] +
-              range_relative_to_stimulus_start[0]) & (
+              time_window[0]) & (
                 lick_times < row["start_time"] +
-                range_relative_to_stimulus_start[1]))],
+                time_window[1]))],
         axis=1,
     )
     stimulus_presentations["licks"] = licks_each_stim
@@ -491,9 +491,7 @@ def get_trace_average(trace, timestamps, start_time, stop_time):
 def add_mean_running_speed_to_stimulus_presentations(
     stimulus_presentations,
     running_speed,
-    range_relative_to_stimulus_start=[
-        0,
-        0.25]):
+    time_window=[-3,3]):
     '''
     Append a column to stimulus_presentations which contains the mean running speed in a range relative to
     the stimulus start time.
@@ -503,8 +501,9 @@ def add_mean_running_speed_to_stimulus_presentations(
             Must contain: 'start_time'
         running_speed (pd.DataFrame): dataframe of running speed.
             Must contain: 'speed', 'timestamps'
-        range_relative_to_stimulus_start (list with 2 elements): start and end of the range
-            relative to the start of each stimulus to average the running speed.
+        time_window: array
+            timestamps in seconds, relative to the start of each stimulus to average the running speed.
+            default = [-3,3]
     Returns:
         stimulus_presentations with new column "mean_running_speed" containing the
         mean running speed within the specified window following each stimulus presentation.
@@ -525,12 +524,14 @@ def add_mean_running_speed_to_stimulus_presentations(
         # add running_speed to stim presentations
         stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations, running_speed)
     '''
+
+
     stim_running_speed = stimulus_presentations.apply(
         lambda row: get_trace_average(
             running_speed['speed'].values,
             running_speed['timestamps'].values,
-            row["start_time"] + range_relative_to_stimulus_start[0],
-            row["start_time"] + range_relative_to_stimulus_start[1]), axis=1,)
+            row["start_time"] + time_window[0],
+            row["start_time"] + time_window[1]), axis=1,)
     stimulus_presentations["mean_running_speed"] = stim_running_speed
     return stimulus_presentations
 
@@ -538,9 +539,9 @@ def add_mean_running_speed_to_stimulus_presentations(
 def add_mean_pupil_area_to_stimulus_presentations(
     stimulus_presentations,
     eye_tracking,
-    range_relative_to_stimulus_start=[
-        0,
-        0.25]):
+    time_window=[
+        -3,
+        3]):
     '''
     Append a column to stimulus_presentations which contains the mean pupil area in a range relative to
     the stimulus start time.
@@ -550,7 +551,7 @@ def add_mean_pupil_area_to_stimulus_presentations(
             Must contain: 'start_time'
         eye_tracking (pd.DataFrame): dataframe of eye tracking data.
             Must contain: 'pupil_area', 'timestamps'
-        range_relative_to_stimulus_start (list with 2 elements): start and end of the range
+        time_window (list with 2 elements): start and end of the range
             relative to the start of each stimulus to average the pupil area.
     Returns:
         stimulus_presentations table with new column "mean_pupil_area" with the
@@ -576,8 +577,8 @@ def add_mean_pupil_area_to_stimulus_presentations(
         lambda row: get_trace_average(
             eye_tracking['pupil_area'].values,
             eye_tracking['timestamps'].values,
-            row["start_time"] + range_relative_to_stimulus_start[0],
-            row["start_time"] + range_relative_to_stimulus_start[1],
+            row["start_time"] + time_window[0],
+            row["start_time"] + time_window[1],
         ), axis=1,)
     stimulus_presentations["mean_pupil_area"] = stim_pupil_area
     return stimulus_presentations
