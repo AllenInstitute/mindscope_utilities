@@ -224,3 +224,9 @@ def compute_means_xr(stimulus_response_xr, time_window):
     })
 
     return stimulus_response_xr
+
+def get_stimulus_response_df(experiment, data_type='dff', event_type='all', time_window=[-3, 3],
+                             interpolate=True, compute_means=True, **kargs):
+
+    stimulus_response_xr = get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time_window=[-3, 3],
+                             interpolate=True, compute_means=True, **kargs)
