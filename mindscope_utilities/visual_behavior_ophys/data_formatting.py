@@ -40,7 +40,7 @@ def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
     if exclude_invalid_rois:
         cell_specimen_table = ophys_experiment.cell_specimen_table.query('valid_roi').reset_index()  # noqa E501
     else:
-        cell_specimen_table = ophys_experiment.cell_specimen_table.reset_index()
+        cell_specimen_table = ophys_experiment.cell_specimen_table.reset_index()  # noqa E501
 
     # iterate over each individual cell
     for idx, row in cell_specimen_table.iterrows():
@@ -86,8 +86,8 @@ def get_event_timestamps(
     stimulus_presentations_df: Pandas.DataFrame
         Output of stimulus_presentations with stimulus trial metadata
     event_type: str
-        Event of interest. Event_type can be any column in the stimulus_presentations_df,
-        including 'omissions' or 'change'. Default is 'all', gets all trials
+        Event of interest. Event_type can be any column in the stimulus_presentations_df,  # noqa E501
+        including 'omissions' or 'change'. Default is 'all', gets all trials  # noqa E501
     onset: str
         optons: 'start_time' - onset of the stimulus, 'stop_time' - offset of the stimulus
         stimulus_presentations_df has a multiple timestamps to align data to. Default = 'start_time'.
@@ -101,18 +101,17 @@ def get_event_timestamps(
         event_times = stimulus_presentations_df[onset]
         event_ids = stimulus_presentations_df.index.values
     elif event_type == 'images':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']
-                                              == False].index.values
+        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] is False][onset]  # noqa E501
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] is False].index.values  # noqa E501
     elif event_type == 'omissions' or event_type == 'omitted':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted']][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']].index.values
+        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted']][onset]  # noqa E501
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']].index.values  # noqa E501
     elif event_type == 'changes' or event_type == 'is_change':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['is_change']][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['is_change']].index.values
+        event_times = stimulus_presentations_df[stimulus_presentations_df['is_change']][onset]  # noqa E501
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['is_change']].index.values  # noqa E501
     else:
-        event_times = stimulus_presentations_df[stimulus_presentations_df[event_type]][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type]].index.values
+        event_times = stimulus_presentations_df[stimulus_presentations_df[event_type]][onset]  # noqa E501
+        event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type]].index.values  # noqa E501
 
     return event_times, event_ids
 
@@ -198,7 +197,8 @@ def get_stimulus_response_xr(ophys_experiment,
     sliced_dataout = np.array(sliced_dataout)
     stimulus_response_xr = xr.DataArray(
         data=sliced_dataout,
-        dims=('cell_specimen_id', 'stimulus_presentation_id', 'eventlocked_timestamps'),
+        dims=('cell_specimen_id', 'stimulus_presentation_id',
+              'eventlocked_timestamps'),
         coords={
             'eventlocked_timestamps': trace_timebase,
             'stimulus_presentation_id': event_ids,
@@ -215,20 +215,24 @@ def get_stimulus_response_xr(ophys_experiment,
 
 def compute_means_xr(stimulus_response_xr, time_window):
     '''
-    Computes means of responses and spontaneous (baseline) traces. Response by default starts at 0, while baseline
+    Computes means of responses and spontaneous (baseline) traces.
+    Response by default starts at 0, while baseline
     trace by default ends at 0.
 
     Parameters:
     ___________
     stimulus_response_xr: xarray
-        stimulus_response_xr from get_stimulus_response_xr with three main dimentions: cell_specimen_id,
+        stimulus_response_xr from get_stimulus_response_xr
+        with three main dimentions: cell_specimen_id,
         trail_id, and eventlocked_timestamps
     time_window: array
-        time window in seconds, used for alignment arount events in get_stimulus_response_xr
+        time window in seconds, used for alignment arount events
+        in get_stimulus_response_xr
 
     Returns:
     _________
-        stimulus_response_xr with additional dimentions: mean_response and mean_baseline
+        stimulus_response_xr with additional
+        dimentions: mean_response and mean_baseline
     '''
     response_range = [0, time_window[1]]
     baseline_range = [time_window[0], 0]
@@ -311,20 +315,20 @@ def get_stimulus_response_df(ophys_experiment,
         mean_response = stimulus_response_xr['mean_response']
         mean_baseline = stimulus_response_xr['mean_baseline']
         stacked_response = mean_response.stack(
-            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()  # noqa E501
         stacked_baseline = mean_baseline.stack(
-            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()  # noqa E501
 
     if compute_significance is True:
         p_vals_omission = stimulus_response_xr['p_value_omission']
         p_vals_stimulus = stimulus_response_xr['p_value_stimulus']
         p_vals_gray_screen = stimulus_response_xr['p_value_gray_screen']
         stacked_pval_omission = p_vals_omission.stack(
-            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()  # noqa E501
         stacked_pval_stimulus = p_vals_stimulus.stack(
-            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()  # noqa E501
         stacked_pval_gray_screen = p_vals_gray_screen.stack(
-            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()  # noqa E501
 
     stacked_traces = traces.stack(multi_index=(
         'stimulus_presentation_id', 'cell_specimen_id')).transpose()
@@ -335,14 +339,14 @@ def get_stimulus_response_df(ophys_experiment,
 
     if compute_means is False and compute_significance is False:
         stimulus_response_df = pd.DataFrame({
-            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],
+            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],  # noqa E501
             'trace_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
         })
     elif compute_means is True and compute_significance is False:
         stimulus_response_df = pd.DataFrame({
-            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],
+            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],  # noqa E501
             'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
@@ -351,7 +355,7 @@ def get_stimulus_response_df(ophys_experiment,
         })
     elif compute_means is False and compute_significance is True:
         stimulus_response_df = pd.DataFrame({
-            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],
+            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],  # noqa E501
             'trace_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
@@ -361,7 +365,7 @@ def get_stimulus_response_df(ophys_experiment,
         })
     else:
         stimulus_response_df = pd.DataFrame({
-            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],
+            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],  # noqa E501
             'trace_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
