@@ -4,6 +4,7 @@ import xarray as xr
 from tqdm import tqdm
 import mindscope_utilities
 
+
 def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
     '''
     Builds a tidy dataframe describing activity for every cell in ophys_experiment.
@@ -97,17 +98,21 @@ def get_event_timestamps(stimulus_presentations_df, event_type='all', onset='sta
         event_times = stimulus_presentations_df[onset]
         event_ids = stimulus_presentations_df.index.values
     elif event_type == 'images':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False] [onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False].index.values
+        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False][onset]
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']
+                                              == False].index.values
     elif event_type == 'omissions' or event_type == 'omitted':
         event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == True][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == True].index.values
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']
+                                              == True].index.values
     elif event_type == 'changes' or event_type == 'is_change':
         event_times = stimulus_presentations_df[stimulus_presentations_df['is_change'] == True][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['is_change'] == True].index.values
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['is_change']
+                                              == True].index.values
     else:
         event_times = stimulus_presentations_df[stimulus_presentations_df[event_type] == True][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type] == True].index.values
+        event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type]
+                                              == True].index.values
 
     return event_times, event_ids
 
@@ -155,7 +160,8 @@ def get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all'
     stimulus_presentations_df = ophys_experiment.stimulus_presentations
 
     # get event times and event ids (original order in the stimulus flow)
-    event_times, event_ids = get_event_timestamps(stimulus_presentations_df, event_type)
+    event_times, event_ids = get_event_timestamps(
+        stimulus_presentations_df, event_type)
 
     # all cell specimen ids in an ophys_experiment
     cell_ids = np.unique(neural_data['cell_specimen_id'].values)
@@ -195,9 +201,11 @@ def get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all'
     )
 
     if compute_means is True:
-        stimulus_response_xr = compute_means_xr(stimulus_response_xr, time_window=time_window)
+        stimulus_response_xr = compute_means_xr(
+            stimulus_response_xr, time_window=time_window)
 
     return stimulus_response_xr
+
 
 def compute_means_xr(stimulus_response_xr, time_window):
     '''
@@ -234,6 +242,7 @@ def compute_means_xr(stimulus_response_xr, time_window):
     })
 
     return stimulus_response_xr
+
 
 def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all', time_window=[-3, 3],
                              interpolate=True, compute_means=True, compute_significance=False, **kargs):
@@ -282,19 +291,24 @@ def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all'
     if compute_means is True:
         mean_response = stimulus_response_xr['mean_response']
         mean_baseline = stimulus_response_xr['mean_baseline']
-        stacked_response = mean_response.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
-        stacked_baseline = mean_baseline.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
+        stacked_response = mean_response.stack(
+            multi_index=('trial_id', 'cell_specimen_id')).transpose()
+        stacked_baseline = mean_baseline.stack(
+            multi_index=('trial_id', 'cell_specimen_id')).transpose()
 
     if compute_significance is True:
         p_vals_omission = stimulus_response_xr['p_value_omission']
         p_vals_stimulus = stimulus_response_xr['p_value_stimulus']
         p_vals_gray_screen = stimulus_response_xr['p_value_gray_screen']
-        stacked_pval_omission = p_vals_omission.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
-        stacked_pval_stimulus = p_vals_stimulus.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
+        stacked_pval_omission = p_vals_omission.stack(
+            multi_index=('trial_id', 'cell_specimen_id')).transpose()
+        stacked_pval_stimulus = p_vals_stimulus.stack(
+            multi_index=('trial_id', 'cell_specimen_id')).transpose()
         stacked_pval_gray_screen = p_vals_gray_screen.stack(
             multi_index=('trial_id', 'cell_specimen_id')).transpose()
 
-    stacked_traces = traces.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
+    stacked_traces = traces.stack(multi_index=(
+        'trial_id', 'cell_specimen_id')).transpose()
     num_repeats = len(stacked_traces)
     trace_timestamps = np.repeat(
         stacked_traces.coords['eventlocked_timestamps'].data[np.newaxis, :],
