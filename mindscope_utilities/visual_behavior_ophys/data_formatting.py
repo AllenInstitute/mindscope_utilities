@@ -376,3 +376,208 @@ def get_stimulus_response_df(ophys_experiment,
             'baseline_response': stacked_baseline.data
         })
     return stimulus_response_df
+
+
+def add_rewards_to_stimulus_presentations(
+    stimulus_presentations,
+    rewards,
+    range_relative_to_stimulus_start=[
+        0,
+        0.75]):
+    '''
+    Append a column to stimulus_presentations which contains the timestamps of rewards that occur
+    in a range relative to the onset of the stimulus.
+
+    Args:
+        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
+            Must contain: 'start_time'
+        rewards (pd.DataFrame): rewards dataframe. Must contain 'timestamps'
+        range_relative_to_stimulus_start (list with 2 elements): start and end of the range
+            relative to the start of each stimulus to average the running speed.
+    Returns:
+        stimulus_presentations with a new column called "reward" that contains
+        reward times that fell within the window relative to each stim time
+
+    Example:
+        # get visual behavior cache
+        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+        cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
+        cache = bpc.from_s3_cache(cache_dir=cache_dir)
+
+        # load data for one experiment
+        ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
+
+        # get necessary tables
+        stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
+        rewards = ophys_experiment.rewards.copy()
+
+        # add rewards to stim presentations
+        stimulus_presentations = add_rewards_to_stimulus_presentations(stimulus_presentations, rewards)
+    '''
+
+    reward_times = rewards['timestamps'].values
+    rewards_each_stim = stimulus_presentations.apply(
+        lambda row: reward_times[
+            ((reward_times > row["start_time"] +
+              range_relative_to_stimulus_start[0]) & (
+                reward_times < row["start_time"] +
+                range_relative_to_stimulus_start[1]))],
+        axis=1,
+    )
+    stimulus_presentations["rewards"] = rewards_each_stim
+    return stimulus_presentations
+
+
+def add_licks_to_stimulus_presentations(
+    stimulus_presentations,
+    licks,
+    range_relative_to_stimulus_start=[
+        0,
+        0.75]):
+    '''
+    Append a column to stimulus_presentations which contains the timestamps of licks that occur
+    in a range relative to the onset of the stimulus.
+
+    Args:
+        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
+            Must contain: 'start_time'
+        licks (pd.DataFrame): lick dataframe. Must contain 'timestamps'
+        range_relative_to_stimulus_start (list with 2 elements): start and end of the range
+            relative to the start of each stimulus to average the running speed.
+    Returns:
+        stimulus_presentations with a new column called "licks" that contains
+        lick times that fell within the window relative to each stim time
+
+
+    Example:
+        # get visual behavior cache
+        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+        cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
+        cache = bpc.from_s3_cache(cache_dir=cache_dir)
+
+        # load data for one experiment
+        ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
+
+        # get necessary tables
+        stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
+        licks = ophys_experiment.licks.copy()
+
+        # add licks to stim presentations
+        stimulus_presentations = add_licks_to_stimulus_presentations(stimulus_presentations, licks)
+    '''
+
+    lick_times = licks['timestamps'].values
+    licks_each_stim = stimulus_presentations.apply(
+        lambda row: lick_times[
+            ((lick_times > row["start_time"] +
+              range_relative_to_stimulus_start[0]) & (
+                lick_times < row["start_time"] +
+                range_relative_to_stimulus_start[1]))],
+        axis=1,
+    )
+    stimulus_presentations["licks"] = licks_each_stim
+    return stimulus_presentations
+
+
+def get_trace_average(trace, timestamps, start_time, stop_time):
+    """
+    takes average value of a trace within a window designated by start_time and stop_time
+    """
+    values_this_range = trace[(
+        (timestamps >= start_time) & (timestamps < stop_time))]
+    return values_this_range.mean()
+
+
+def add_mean_running_speed_to_stimulus_presentations(
+    stimulus_presentations,
+    running_speed,
+    range_relative_to_stimulus_start=[
+        0,
+        0.25]):
+    '''
+    Append a column to stimulus_presentations which contains the mean running speed in a range relative to
+    the stimulus start time.
+
+    Args:
+        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
+            Must contain: 'start_time'
+        running_speed (pd.DataFrame): dataframe of running speed.
+            Must contain: 'speed', 'timestamps'
+        range_relative_to_stimulus_start (list with 2 elements): start and end of the range
+            relative to the start of each stimulus to average the running speed.
+    Returns:
+        stimulus_presentations with new column "mean_running_speed" containing the
+        mean running speed within the specified window following each stimulus presentation.
+
+    Example:
+        # get visual behavior cache
+        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+        cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
+        cache = bpc.from_s3_cache(cache_dir=cache_dir)
+
+        # load data for one experiment
+        ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
+
+        # get necessary tables
+        stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
+        running_speed = ophys_experiment.running_speed.copy()
+
+        # add running_speed to stim presentations
+        stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations, running_speed)
+    '''
+    stim_running_speed = stimulus_presentations.apply(
+        lambda row: get_trace_average(
+            running_speed['speed'].values,
+            running_speed['timestamps'].values,
+            row["start_time"] + range_relative_to_stimulus_start[0],
+            row["start_time"] + range_relative_to_stimulus_start[1]), axis=1,)
+    stimulus_presentations["mean_running_speed"] = stim_running_speed
+    return stimulus_presentations
+
+
+def add_mean_pupil_area_to_stimulus_presentations(
+    stimulus_presentations,
+    eye_tracking,
+    range_relative_to_stimulus_start=[
+        0,
+        0.25]):
+    '''
+    Append a column to stimulus_presentations which contains the mean pupil area in a range relative to
+    the stimulus start time.
+
+    Args:
+        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
+            Must contain: 'start_time'
+        eye_tracking (pd.DataFrame): dataframe of eye tracking data.
+            Must contain: 'pupil_area', 'timestamps'
+        range_relative_to_stimulus_start (list with 2 elements): start and end of the range
+            relative to the start of each stimulus to average the pupil area.
+    Returns:
+        stimulus_presentations table with new column "mean_pupil_area" with the
+        mean pupil arae within the specified window following each stimulus presentation.
+
+    Example:
+        # get visual behavior cache
+        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+        cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
+        cache = bpc.from_s3_cache(cache_dir=cache_dir)
+
+        # load data for one experiment
+        ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
+
+        # get necessary tables
+        stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
+        eye_tracking = ophys_experiment.eye_tracking.copy()
+
+        # add pupil area to stim presentations
+        stimulus_presentations = add_mean_pupil_area_to_stimulus_presentations(stimulus_presentations, eye_tracking)
+    '''
+    stim_pupil_area = stimulus_presentations.apply(
+        lambda row: get_trace_average(
+            eye_tracking['pupil_area'].values,
+            eye_tracking['timestamps'].values,
+            row["start_time"] + range_relative_to_stimulus_start[0],
+            row["start_time"] + range_relative_to_stimulus_start[1],
+        ), axis=1,)
+    stimulus_presentations["mean_pupil_area"] = stim_pupil_area
+    return stimulus_presentations
