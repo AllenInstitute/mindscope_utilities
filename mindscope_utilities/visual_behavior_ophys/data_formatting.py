@@ -201,10 +201,20 @@ def get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all'
 
 def compute_means_xr(stimulus_response_xr, time_window):
     '''
+    Computes means of responses and spontaneous (baseline) traces. Response by default starts at 0, while baseline
+    trace by default ends at 0.
 
-    :param stimulus_response_xr:
-    :param time_window:
-    :return:
+    Parameters:
+    ___________
+    stimulus_response_xr: xarray
+        stimulus_response_xr from get_stimulus_response_xr with three main dimentions: cell_specimen_id,
+        trail_id, and eventlocked_timestamps
+    time_window: array
+        time window in seconds, used for alignment arount events in get_stimulus_response_xr
+
+    Returns:
+    _________
+        stimulus_response_xr with additional dimentions: mean_response and mean_baseline
     '''
     response_range = [0, time_window[1]]
     baseline_range = [time_window[0], 0]
