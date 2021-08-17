@@ -102,7 +102,8 @@ def get_event_timestamps(
         event_ids = stimulus_presentations_df.index.values
     elif event_type == 'images':
         event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False].index.values
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']
+                                              == False].index.values
     elif event_type == 'omissions' or event_type == 'omitted':
         event_times = stimulus_presentations_df[stimulus_presentations_df['omitted']][onset]
         event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']].index.values
@@ -299,7 +300,7 @@ def get_stimulus_response_df(ophys_experiment,
         ophys_experiment,
         data_type='dff',
         event_type='all',
-        time_window=[ -3, 3],
+        time_window=[-3, 3],
         interpolate=True,
         compute_means=True,
         compute_significance=False,
