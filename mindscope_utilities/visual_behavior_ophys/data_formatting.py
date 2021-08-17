@@ -149,7 +149,7 @@ def get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all'
     __________
     stimulus_response_xr: xarray
         Xarray of aligned neural data with multiple dimentions: cell_specimen_id,
-        'eventlocked_timestamps', and 'trial_id'
+        'eventlocked_timestamps', and 'stimulus_presentation_id'
 
     '''
 
@@ -192,10 +192,10 @@ def get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all'
     sliced_dataout = np.array(sliced_dataout)
     stimulus_response_xr = xr.DataArray(
         data=sliced_dataout,
-        dims=('cell_specimen_id', 'trial_id', 'eventlocked_timestamps'),
+        dims=('cell_specimen_id', 'stimulus_presentation_id', 'eventlocked_timestamps'),
         coords={
             'eventlocked_timestamps': trace_timebase,
-            'trial_id': event_ids,
+            'stimulus_presentation_id': event_ids,
             'cell_specimen_id': cell_ids
         }
     )
@@ -292,23 +292,23 @@ def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all'
         mean_response = stimulus_response_xr['mean_response']
         mean_baseline = stimulus_response_xr['mean_baseline']
         stacked_response = mean_response.stack(
-            multi_index=('trial_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
         stacked_baseline = mean_baseline.stack(
-            multi_index=('trial_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
 
     if compute_significance is True:
         p_vals_omission = stimulus_response_xr['p_value_omission']
         p_vals_stimulus = stimulus_response_xr['p_value_stimulus']
         p_vals_gray_screen = stimulus_response_xr['p_value_gray_screen']
         stacked_pval_omission = p_vals_omission.stack(
-            multi_index=('trial_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
         stacked_pval_stimulus = p_vals_stimulus.stack(
-            multi_index=('trial_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
         stacked_pval_gray_screen = p_vals_gray_screen.stack(
-            multi_index=('trial_id', 'cell_specimen_id')).transpose()
+            multi_index=('stimulus_presentation_id', 'cell_specimen_id')).transpose()
 
     stacked_traces = traces.stack(multi_index=(
-        'trial_id', 'cell_specimen_id')).transpose()
+        'stimulus_presentation_id', 'cell_specimen_id')).transpose()
     num_repeats = len(stacked_traces)
     trace_timestamps = np.repeat(
         stacked_traces.coords['eventlocked_timestamps'].data[np.newaxis, :],
@@ -316,14 +316,14 @@ def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all'
 
     if compute_means is False and compute_significance is False:
         stimulus_response_df = pd.DataFrame({
-            'trial_id': stacked_traces.coords['trial_id'],
+            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],
             'trace_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
         })
     elif compute_means is True and compute_significance is False:
         stimulus_response_df = pd.DataFrame({
-            'trial_id': stacked_traces.coords['trial_id'],
+            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],
             'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
@@ -332,7 +332,7 @@ def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all'
         })
     elif compute_means is False and compute_significance is True:
         stimulus_response_df = pd.DataFrame({
-            'trial_id': stacked_traces.coords['trial_id'],
+            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],
             'trace_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
@@ -342,7 +342,7 @@ def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all'
         })
     else:
         stimulus_response_df = pd.DataFrame({
-            'trial_id': stacked_traces.coords['trial_id'],
+            'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],
             'trace_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
