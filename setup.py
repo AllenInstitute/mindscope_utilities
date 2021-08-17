@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='mindscope_utilities',
-    version='0.1.7',
+    version='0.1.8',
     packages=['mindscope_utilities'],
     include_package_data = True,
     description='Utilities for loading, manipulating and visualizing data from the Allen Institute Mindscope program',
@@ -12,7 +12,7 @@ setup(name='mindscope_utilities',
     install_requires=[
         'flake8',
         'pytest',
-        'allensdk==2.11.2',
+        'allensdk',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
