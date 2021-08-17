@@ -340,7 +340,7 @@ def get_stimulus_response_df(ophys_experiment,
     if compute_means is False and compute_significance is False:
         stimulus_response_df = pd.DataFrame({
             'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],  # noqa E501
-            'trace_id': stacked_traces.coords['cell_specimen_id'],
+            'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
         })
@@ -356,7 +356,7 @@ def get_stimulus_response_df(ophys_experiment,
     elif compute_means is False and compute_significance is True:
         stimulus_response_df = pd.DataFrame({
             'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],  # noqa E501
-            'trace_id': stacked_traces.coords['cell_specimen_id'],
+            'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
             'p_value_gray_screen': stacked_pval_gray_screen,
@@ -366,7 +366,7 @@ def get_stimulus_response_df(ophys_experiment,
     else:
         stimulus_response_df = pd.DataFrame({
             'stimulus_presentation_id': stacked_traces.coords['stimulus_presentation_id'],  # noqa E501
-            'trace_id': stacked_traces.coords['cell_specimen_id'],
+            'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
             'p_value_gray_screen': stacked_pval_gray_screen,
