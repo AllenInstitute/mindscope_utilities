@@ -108,6 +108,43 @@ def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_e
     return t_array
 
 
+def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampling_rate=None, include_endpoint=False):
+    '''
+    Get nearest indices to event timestamps, plus ind offsets (start:stop)
+    for slicing out a window around the event from the trace.
+    Parameters:
+    -----------
+    data_timestamps : np.array
+        Timestamps of the datatrace.
+    event_timestamps : np.array
+        Timestamps of events around which to slice windows.
+    time_window : list
+        [start_offset, end_offset] in seconds
+    sampling_rate : float, optional, default=None
+        Sampling rate of the datatrace.
+        If left as None, samplng rate is inferred from data_timestamps.
+
+    Returns:
+    --------
+    event_indices : np.array
+        Indices of events from the timestamps provided.
+    start_ind_offset : int
+    end_ind_offset : int
+    trace_timebase :  np.array
+    '''
+    if sampling_rate is None:
+        sampling_rate = 1 / np.diff(data_timestamps).mean()
+
+    event_indices = index_of_nearest_value(data_timestamps, event_timestamps)
+    trace_len = (time_window[1] - time_window[0]) * sampling_rate
+    start_ind_offset = int(time_window[0] * sampling_rate)
+    end_ind_offset = int(start_ind_offset + trace_len) + int(include_endpoint)
+    trace_timebase = np.arange(
+        start_ind_offset, end_ind_offset) / sampling_rate
+
+    return event_indices, start_ind_offset, end_ind_offset, trace_timebase
+
+
 def index_of_nearest_value(data_timestamps, event_timestamps):
     '''
     The index of the nearest sample time for each event time.
@@ -134,7 +171,7 @@ def index_of_nearest_value(data_timestamps, event_timestamps):
     return event_indices
 
 
-def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
+def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None, output_sampling_rate=None, include_endpoint=True, output_format='tidy', interpolate=True):  # NOQA E501
     '''
     Slices a timeseries relative to a given set of event times
     to build an event-triggered response.
@@ -201,6 +238,9 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
             One row per interpolated timepoint
             One column per event,
                 with column names titled event_{EVENT NUMBER}_t={EVENT TIME}
+    interpolate : Boolean
+        if True (default), interpolates each response onto a common timebase
+        if False, shifts each response to align indices to a common timebase
 
     Returns:
     --------
@@ -263,38 +303,65 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     # ensure that t_end is greater than t_start
     assert t_end > t_start, 'must define t_end to be greater than t_start'
 
-    # set up a dictionary with key 'time' and
-    t_array = get_time_array(
-        t_start=t_start,
-        t_end=t_end,
-        sampling_rate=output_sampling_rate,
-        include_endpoint=include_endpoint,
-    )
-    data_dict = {'time': t_array}
+    if output_sampling_rate is None:
+        # if sampling rate is None,
+        # set it to be the mean sampling rate of the input data
+        output_sampling_rate = 1 / np.diff(data[t]).mean()
 
-    # iterate over all event times
-    data_time_indexed = data.set_index(t, inplace=False)
+    # if interpolate is set to True,
+    # we will calculate a common timebase and interpolate every response onto that timebase
+    if interpolate:
+        # set up a dictionary with key 'time' and
+        t_array = get_time_array(
+            t_start=t_start,
+            t_end=t_end,
+            sampling_rate=output_sampling_rate,
+            include_endpoint=include_endpoint,
+        )
+        data_dict = {'time': t_array}
 
-    for event_number, event_time in enumerate(np.array(event_times)):
+        # iterate over all event times
+        data_reindexed = data.set_index(t, inplace=False)
 
-        # get a slice of the input data surrounding each event time
-        data_slice = data_time_indexed[y].loc[event_time + t_start: event_time + t_end]  # noqa: E501
+        for event_number, event_time in enumerate(np.array(event_times)):
 
-        # update our dictionary to have a new key defined as
-        # 'event_{EVENT NUMBER}_t={EVENT TIME}' and
-        # a value that includes an array that represents the
-        # sliced data around the current event, interpolated
-        # on the linearly spaced time array
-        data_dict.update({
-            'event_{}_t={}'.format(event_number, event_time): np.interp(
-                data_dict['time'],
-                data_slice.index - event_time,
-                data_slice.values
-            )
-        })
+            # get a slice of the input data surrounding each event time
+            data_slice = data_reindexed[y].loc[event_time + t_start: event_time + t_end]  # noqa: E501
 
-    # define a wide dataframe as a dataframe of the above compiled dictionary
-    wide_etr = pd.DataFrame(data_dict)
+            # update our dictionary to have a new key defined as
+            # 'event_{EVENT NUMBER}_t={EVENT TIME}' and
+            # a value that includes an array that represents the
+            # sliced data around the current event, interpolated
+            # on the linearly spaced time array
+            data_dict.update({
+                'event_{}_t={}'.format(event_number, event_time): np.interp(
+                    data_dict['time'],
+                    data_slice.index - event_time,
+                    data_slice.values
+                )
+            })
+
+        # define a wide dataframe as a dataframe of the above compiled dictionary
+        wide_etr = pd.DataFrame(data_dict)
+
+    # if interpolate is False,
+    # we will calculate a common timebase and shift every response onto that timebase
+    else:
+        event_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(
+            np.array(data[t]),
+            np.array(event_times),
+            time_window = [t_start, t_end],
+            sampling_rate=None,
+            include_endpoint=True
+        )
+        all_inds = event_indices + np.arange(start_ind_offset, end_ind_offset)[:, None]
+        wide_etr = pd.DataFrame(
+            data[y].values.T[all_inds],
+            index = trace_timebase,
+            columns = ['event_{}_t={}'.format(event_index, event_time) for event_index, event_time in enumerate(event_times)]  # NOQA E501
+        ).rename_axis(index='time').reset_index()
+
+    
     if output_format == 'wide':
         # return the wide dataframe if output_format is 'wide'
         return wide_etr.set_index('time')
