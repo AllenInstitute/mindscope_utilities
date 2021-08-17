@@ -130,3 +130,13 @@ dmypy.json
 
 # vscode
 .vscode/
+
+.idea/modules.xml
+
+.idea/vcs.xml
+
+.idea/workspace.xml
+
+.idea/mindscope_utilities.iml
+
+.idea/misc.xml
