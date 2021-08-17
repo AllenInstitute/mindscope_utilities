@@ -4,19 +4,19 @@ import xarray as xr
 from tqdm import tqdm
 import mindscope_utilities
 
-def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
+def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
     '''
-    Builds a tidy dataframe describing activity for every cell in experiment.
+    Builds a tidy dataframe describing activity for every cell in ophys_experiment.
     Tidy format is defined as one row per observation.
     Thus, the output dataframe will be n_cells x n_timetpoints long
 
     Parameters:
     -----------
-    experiment : AllenSDK BehaviorOphysExperiment object
+    ophys_experiment : AllenSDK BehaviorOphysExperiment object
         A BehaviorOphysExperiment instance
-        See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_experiment.py  # noqa E501
+        See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
     exclude_invalid_rois : bool
-        If True (default), only includes ROIs that are listed as `valid_roi = True` in the experiment.cell_specimen_table.
+        If True (default), only includes ROIs that are listed as `valid_roi = True` in the ophys_experiment.cell_specimen_table.
         If False, include all ROIs.
         Note that invalid ROIs are only exposed for internal AllenInstitute users, so passing `False` will not change behavior for external users
 
@@ -37,9 +37,9 @@ def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
 
     # query on valid_roi if exclude_invalid_rois == True
     if exclude_invalid_rois:
-        cell_specimen_table = experiment.cell_specimen_table.query('valid_roi').reset_index()  # noqa E501
+        cell_specimen_table = ophys_experiment.cell_specimen_table.query('valid_roi').reset_index()  # noqa E501
     else:
-        cell_specimen_table = experiment.cell_specimen_table.reset_index()
+        cell_specimen_table = ophys_experiment.cell_specimen_table.reset_index()
 
     # iterate over each individual cell
     for idx, row in cell_specimen_table.iterrows():
@@ -47,10 +47,10 @@ def build_tidy_cell_df(experiment, exclude_invalid_rois=True):
 
         # build a tidy dataframe for this cell
         cell_df = pd.DataFrame({
-            'timestamps': experiment.ophys_timestamps,
-            'dff': experiment.dff_traces.loc[cell_specimen_id]['dff'] if cell_specimen_id in experiment.dff_traces.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
-            'events': experiment.events.loc[cell_specimen_id]['events'] if cell_specimen_id in experiment.events.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
-            'filtered_events': experiment.events.loc[cell_specimen_id]['filtered_events'] if cell_specimen_id in experiment.events.index else [np.nan] * len(experiment.ophys_timestamps),  # noqa E501
+            'timestamps': ophys_experiment.ophys_timestamps,
+            'dff': ophys_experiment.dff_traces.loc[cell_specimen_id]['dff'] if cell_specimen_id in ophys_experiment.dff_traces.index else [np.nan] * len(ophys_experiment.ophys_timestamps),  # noqa E501
+            'events': ophys_experiment.events.loc[cell_specimen_id]['events'] if cell_specimen_id in ophys_experiment.events.index else [np.nan] * len(ophys_experiment.ophys_timestamps),  # noqa E501
+            'filtered_events': ophys_experiment.events.loc[cell_specimen_id]['filtered_events'] if cell_specimen_id in ophys_experiment.events.index else [np.nan] * len(ophys_experiment.ophys_timestamps),  # noqa E501
         })
 
         # Make the cell_roi_id and cell_specimen_id columns categorical.
@@ -112,19 +112,19 @@ def get_event_timestamps(stimulus_presentations_df, event_type='all', onset='sta
     return event_times, event_ids
 
 
-def get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time_window=[-3, 3],
-                             interpolate=True, compute_means=True, **kargs):
+def get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all', time_window=[-3, 3],
+                             interpolate=True, compute_means=True, compute_significance=False, **kargs):
     '''
     Parameters:
     ___________
-    experiment: obj
+    ophys_experiment: obj
         AllenSDK BehaviorOphysExperiment object
         A BehaviorOphysExperiment instance
-        See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_experiment.py  # noqa E501
+        See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
     data_type: str
         neural data type to extract, options are: dff (default), events, filtered_events
     event_type: str
-        event type to align to, which can be found in columns of experiment.stimulus_presentations df.
+        event type to align to, which can be found in columns of ophys_experiment.stimulus_presentations df.
         options are: 'all' (default) - gets all stimulus trials
                      'images' - gets only image presentations (changes and not changes)
                      'omissions' - gets only trials with omitted stimuli
@@ -149,15 +149,15 @@ def get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time
     '''
 
     # load neural data
-    neural_data = build_tidy_cell_df(experiment)
+    neural_data = build_tidy_cell_df(ophys_experiment)
 
     # load stimulus_presentations table
-    stimulus_presentations_df = experiment.stimulus_presentations
+    stimulus_presentations_df = ophys_experiment.stimulus_presentations
 
     # get event times and event ids (original order in the stimulus flow)
     event_times, event_ids = get_event_timestamps(stimulus_presentations_df, event_type)
 
-    # all cell specimen ids in an experiment
+    # all cell specimen ids in an ophys_experiment
     cell_ids = np.unique(neural_data['cell_specimen_id'].values)
 
     # collect aligned data
@@ -225,8 +225,107 @@ def compute_means_xr(stimulus_response_xr, time_window):
 
     return stimulus_response_xr
 
-def get_stimulus_response_df(experiment, data_type='dff', event_type='all', time_window=[-3, 3],
-                             interpolate=True, compute_means=True, **kargs):
+def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all', time_window=[-3, 3],
+                             interpolate=True, compute_means=True, compute_significance=False, **kargs):
+    '''
+    Get stimulus aligned responses from one ophys_experiment.
 
-    stimulus_response_xr = get_stimulus_response_xr(experiment, data_type='dff', event_type='all', time_window=[-3, 3],
-                             interpolate=True, compute_means=True, **kargs)
+    Parameters:
+    ___________
+    ophys_experiment: obj
+        AllenSDK BehaviorOphysExperiment object
+        A BehaviorOphysExperiment instance
+        See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
+    data_type: str
+        neural data type to extract, options are: dff (default), events, filtered_events
+    event_type: str
+        event type to align to, which can be found in columns of ophys_experiment.stimulus_presentations df.
+        options are: 'all' (default) - gets all stimulus trials
+                     'images' - gets only image presentations (changes and not changes)
+                     'omissions' - gets only trials with omitted stimuli
+                     'changes' - get only trials of image changes
+    time_window: array
+        array of two int or floats indicating the time window on sliced data, default = [-3, 3]
+    interpolate: bool
+        type of alignment. If True (default) - interpolates neural data to align timestamps
+        with stimulus presentations. If False - shifts data to the nearest timestamps (currently unavailable)
+    compute_menas: bool
+        Default=True, computes mean response and spontaneous (baseline) values. Adds them as additional columns.
+    compute_significance: bool
+        Currently, not working. A placeholder for future addition of finding significant responses.
+
+    kwargs: key, value mappings
+        Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
+        for interpolation method such as output_sampling_rate and include_endpoint.
+
+    Returns:
+    ___________
+    stimulus_response_df: Pandas.DataFrame
+
+
+    '''
+
+    stimulus_response_xr = get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all', time_window=[-3, 3],
+                                                    interpolate=True, compute_means=True, compute_significance=False, **kargs)
+
+    traces = stimulus_response_xr['eventlocked_traces']
+    if compute_means is True:
+        mean_response = stimulus_response_xr['mean_response']
+        mean_baseline = stimulus_response_xr['mean_baseline']
+        stacked_response = mean_response.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
+        stacked_baseline = mean_baseline.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
+
+    if compute_significance is True:
+        p_vals_omission = stimulus_response_xr['p_value_omission']
+        p_vals_stimulus = stimulus_response_xr['p_value_stimulus']
+        p_vals_gray_screen = stimulus_response_xr['p_value_gray_screen']
+        stacked_pval_omission = p_vals_omission.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
+        stacked_pval_stimulus = p_vals_stimulus.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
+        stacked_pval_gray_screen = p_vals_gray_screen.stack(
+            multi_index=('trial_id', 'cell_specimen_id')).transpose()
+
+    stacked_traces = traces.stack(multi_index=('trial_id', 'cell_specimen_id')).transpose()
+    num_repeats = len(stacked_traces)
+    trace_timestamps = np.repeat(
+        stacked_traces.coords['eventlocked_timestamps'].data[np.newaxis, :],
+        repeats=num_repeats, axis=0)
+
+    if compute_means is False and compute_significance is False:
+        stimulus_response_df = pd.DataFrame({
+            'trial_id': stacked_traces.coords['trial_id'],
+            'trace_id': stacked_traces.coords['cell_specimen_id'],
+            'trace': list(stacked_traces.data),
+            'trace_timestamps': list(trace_timestamps),
+        })
+    elif compute_means is True and compute_significance is False:
+        stimulus_response_df = pd.DataFrame({
+            'trial_id': stacked_traces.coords['trial_id'],
+            'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
+            'trace': list(stacked_traces.data),
+            'trace_timestamps': list(trace_timestamps),
+            'mean_response': stacked_response.data,
+            'baseline_response': stacked_baseline.data,
+        })
+    elif compute_means is False and compute_significance is True:
+        stimulus_response_df = pd.DataFrame({
+            'trial_id': stacked_traces.coords['trial_id'],
+            'trace_id': stacked_traces.coords['cell_specimen_id'],
+            'trace': list(stacked_traces.data),
+            'trace_timestamps': list(trace_timestamps),
+            'p_value_gray_screen': stacked_pval_gray_screen,
+            'p_value_omission': stacked_pval_omission,
+            'p_value_stimulus': stacked_pval_stimulus,
+        })
+    else:
+        stimulus_response_df = pd.DataFrame({
+            'trial_id': stacked_traces.coords['trial_id'],
+            'trace_id': stacked_traces.coords['cell_specimen_id'],
+            'trace': list(stacked_traces.data),
+            'trace_timestamps': list(trace_timestamps),
+            'p_value_gray_screen': stacked_pval_gray_screen,
+            'p_value_omission': stacked_pval_omission,
+            'p_value_stimulus': stacked_pval_stimulus,
+            'mean_response': stacked_response.data,
+            'baseline_response': stacked_baseline.data
+        })
+    return stimulus_response_df
