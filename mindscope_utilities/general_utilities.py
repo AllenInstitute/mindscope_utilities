@@ -108,6 +108,32 @@ def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_e
     return t_array
 
 
+def index_of_nearest_value(data_timestamps, event_timestamps):
+    '''
+    The index of the nearest sample time for each event time.
+
+    Parameters:
+    -----------
+    sample_timestamps : np.ndarray of floats
+        sorted 1-d vector of data sample timestamps.
+    event_timestamps : np.ndarray of floats
+        1-d vector of event timestamps.
+
+    Returns:
+    --------
+    event_aligned_ind : np.ndarray of int
+        An array of nearest sample time index for each event times.
+    '''
+    insertion_ind = np.searchsorted(data_timestamps, event_timestamps)
+    # is the value closer to data at insertion_ind or insertion_ind-1?
+    ind_diff = data_timestamps[insertion_ind] - event_timestamps
+    ind_minus_one_diff = np.abs(data_timestamps[np.clip(
+        insertion_ind - 1, 0, np.inf).astype(int)] - event_timestamps)
+
+    event_indices = insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
+    return event_indices
+
+
 def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None, output_sampling_rate=10, include_endpoint=True, output_format='tidy'):  # NOQA E501
     '''
     Slices a timeseries relative to a given set of event times
