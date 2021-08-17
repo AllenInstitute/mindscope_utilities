@@ -301,13 +301,13 @@ def get_stimulus_response_df(ophys_experiment,
     '''
 
     stimulus_response_xr = get_stimulus_response_xr(
-        ophys_experiment,
-        data_type='dff',
-        event_type='all',
-        time_window=[-3, 3],
-        interpolate=True,
-        compute_means=True,
-        compute_significance=False,
+        ophys_experiment=ophys_experiment,
+        data_type=data_type,
+        event_type=event_type,
+        time_window=time_window,
+        interpolate=interpolate,
+        compute_means=compute_means,
+        compute_significance=compute_significance,
         **kargs)
 
     traces = stimulus_response_xr['eventlocked_traces']
