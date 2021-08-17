@@ -101,8 +101,8 @@ def get_event_timestamps(
         event_times = stimulus_presentations_df[onset]
         event_ids = stimulus_presentations_df.index.values
     elif event_type == 'images':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] is False][onset]  # noqa E501
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] is False].index.values  # noqa E501
+        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False][onset]  # noqa E501
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False].index.values  # noqa E501
     elif event_type == 'omissions' or event_type == 'omitted':
         event_times = stimulus_presentations_df[stimulus_presentations_df['omitted']][onset]  # noqa E501
         event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']].index.values  # noqa E501
