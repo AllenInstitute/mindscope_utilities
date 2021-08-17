@@ -74,7 +74,10 @@ def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
     return tidy_df
 
 
-def get_event_timestamps(stimulus_presentations_df, event_type='all', onset='start_time'):
+def get_event_timestamps(
+        stimulus_presentations_df,
+        event_type='all',
+        onset='start_time'):
     '''
     Gets timestamps of events of interest from the stimulus_resentations df.
 
@@ -99,26 +102,28 @@ def get_event_timestamps(stimulus_presentations_df, event_type='all', onset='sta
         event_ids = stimulus_presentations_df.index.values
     elif event_type == 'images':
         event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']
-                                              == False].index.values
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False].index.values
     elif event_type == 'omissions' or event_type == 'omitted':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == True][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']
-                                              == True].index.values
+        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted']][onset]
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']].index.values
     elif event_type == 'changes' or event_type == 'is_change':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['is_change'] == True][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['is_change']
-                                              == True].index.values
+        event_times = stimulus_presentations_df[stimulus_presentations_df['is_change']][onset]
+        event_ids = stimulus_presentations_df[stimulus_presentations_df['is_change']].index.values
     else:
-        event_times = stimulus_presentations_df[stimulus_presentations_df[event_type] == True][onset]
-        event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type]
-                                              == True].index.values
+        event_times = stimulus_presentations_df[stimulus_presentations_df[event_type]][onset]
+        event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type]].index.values
 
     return event_times, event_ids
 
 
-def get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all', time_window=[-3, 3],
-                             interpolate=True, compute_means=True, compute_significance=False, **kargs):
+def get_stimulus_response_xr(ophys_experiment,
+                             data_type='dff',
+                             event_type='all',
+                             time_window=[-3, 3],
+                             interpolate=True,
+                             compute_means=True,
+                             compute_significance=False,
+                             **kargs):
     '''
     Parameters:
     ___________
@@ -244,8 +249,14 @@ def compute_means_xr(stimulus_response_xr, time_window):
     return stimulus_response_xr
 
 
-def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all', time_window=[-3, 3],
-                             interpolate=True, compute_means=True, compute_significance=False, **kargs):
+def get_stimulus_response_df(ophys_experiment,
+                             data_type='dff',
+                             event_type='all',
+                             time_window=[-3, 3],
+                             interpolate=True,
+                             compute_means=True,
+                             compute_significance=False,
+                             **kargs):
     '''
     Get stimulus aligned responses from one ophys_experiment.
 
@@ -284,8 +295,15 @@ def get_stimulus_response_df(ophys_experiment, data_type='dff', event_type='all'
 
     '''
 
-    stimulus_response_xr = get_stimulus_response_xr(ophys_experiment, data_type='dff', event_type='all', time_window=[-3, 3],
-                                                    interpolate=True, compute_means=True, compute_significance=False, **kargs)
+    stimulus_response_xr = get_stimulus_response_xr(
+        ophys_experiment,
+        data_type='dff',
+        event_type='all',
+        time_window=[ -3, 3],
+        interpolate=True,
+        compute_means=True,
+        compute_significance=False,
+        **kargs)
 
     traces = stimulus_response_xr['eventlocked_traces']
     if compute_means is True:
