@@ -385,23 +385,26 @@ def add_rewards_to_stimulus_presentations(
         -3,
         3]):
     '''
-    Append a column to stimulus_presentations which contains the timestamps of rewards that occur
+    Append a column to stimulus_presentations which contains
+    the timestamps of rewards that occur
     in a range relative to the onset of the stimulus.
 
     Args:
-        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
+        stimulus_presentations (pd.DataFrame): dataframe of
+            stimulus presentations.
             Must contain: 'start_time'
         rewards (pd.DataFrame): rewards dataframe. Must contain 'timestamps'
         time_window (list with 2 elements): start and end of the range
-            relative to the start of each stimulus to average the running speed.
+            relative to the start of each stimulus
+            to average the running speed.
     Returns:
         stimulus_presentations with a new column called "reward" that contains
         reward times that fell within the window relative to each stim time
 
     Example:
         # get visual behavior cache
-        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
-        cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
+        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc  # noqa E501
+        cache_dir = SOME_LOCAL_DIRECTORY
         cache = bpc.from_s3_cache(cache_dir=cache_dir)
 
         # load data for one experiment
@@ -412,7 +415,7 @@ def add_rewards_to_stimulus_presentations(
         rewards = ophys_experiment.rewards.copy()
 
         # add rewards to stim presentations
-        stimulus_presentations = add_rewards_to_stimulus_presentations(stimulus_presentations, rewards)
+        stimulus_presentations = add_rewards_to_stimulus_presentations(stimulus_presentations, rewards)  # noqa E501
     '''
 
     reward_times = rewards['timestamps'].values
@@ -435,15 +438,17 @@ def add_licks_to_stimulus_presentations(
         -3,
         3]):
     '''
-    Append a column to stimulus_presentations which contains the timestamps of licks that occur
+    Append a column to stimulus_presentations which
+    contains the timestamps of licks that occur
     in a range relative to the onset of the stimulus.
 
     Args:
-        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
+        stimulus_presentations (pd.DataFrame): 
+            dataframe of stimulus presentations.
             Must contain: 'start_time'
         licks (pd.DataFrame): lick dataframe. Must contain 'timestamps'
         time_window (list with 2 elements): start and end of the range
-            relative to the start of each stimulus to average the running speed.
+            relative to the start of each stimulus to average the running speed.  # noqa E501
     Returns:
         stimulus_presentations with a new column called "licks" that contains
         lick times that fell within the window relative to each stim time
@@ -451,8 +456,8 @@ def add_licks_to_stimulus_presentations(
 
     Example:
         # get visual behavior cache
-        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
-        cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
+        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc  # noqa E501
+        cache_dir = SOME_LOCAL_DIRECTORY
         cache = bpc.from_s3_cache(cache_dir=cache_dir)
 
         # load data for one experiment
@@ -481,7 +486,8 @@ def add_licks_to_stimulus_presentations(
 
 def get_trace_average(trace, timestamps, start_time, stop_time):
     """
-    takes average value of a trace within a window designated by start_time and stop_time
+    takes average value of a trace within a window
+    designated by start_time and stop_time
     """
     values_this_range = trace[(
         (timestamps >= start_time) & (timestamps < stop_time))]
@@ -489,29 +495,34 @@ def get_trace_average(trace, timestamps, start_time, stop_time):
 
 
 def add_mean_running_speed_to_stimulus_presentations(
-    stimulus_presentations,
-    running_speed,
-    time_window=[-3,3]):
+        stimulus_presentations,
+        running_speed,
+        time_window=[-3, 3]):
     '''
-    Append a column to stimulus_presentations which contains the mean running speed in a range relative to
+    Append a column to stimulus_presentations which contains
+    the mean running speed in a range relative to
     the stimulus start time.
 
     Args:
-        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
+        stimulus_presentations (pd.DataFrame): dataframe of 
+            stimulus presentations.
             Must contain: 'start_time'
         running_speed (pd.DataFrame): dataframe of running speed.
             Must contain: 'speed', 'timestamps'
         time_window: array
-            timestamps in seconds, relative to the start of each stimulus to average the running speed.
+            timestamps in seconds, relative to the start of each stimulus 
+            to average the running speed.
             default = [-3,3]
     Returns:
-        stimulus_presentations with new column "mean_running_speed" containing the
-        mean running speed within the specified window following each stimulus presentation.
+        stimulus_presentations with new column
+        "mean_running_speed" containing the
+        mean running speed within the specified window
+        following each stimulus presentation.
 
     Example:
         # get visual behavior cache
         from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
-        cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
+        cache_dir = SOME_LOCAL_DIR
         cache = bpc.from_s3_cache(cache_dir=cache_dir)
 
         # load data for one experiment
@@ -524,7 +535,6 @@ def add_mean_running_speed_to_stimulus_presentations(
         # add running_speed to stim presentations
         stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations, running_speed)
     '''
-
 
     stim_running_speed = stimulus_presentations.apply(
         lambda row: get_trace_average(
