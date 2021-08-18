@@ -382,7 +382,7 @@ def add_rewards_to_stimulus_presentations(
     stimulus_presentations,
     rewards,
     time_window=[
-        -3,
+        0,
         3]):
     '''
     Append a column to stimulus_presentations which contains
@@ -435,7 +435,7 @@ def add_licks_to_stimulus_presentations(
     stimulus_presentations,
     licks,
     time_window=[
-        -3,
+        0,
         3]):
     '''
     Append a column to stimulus_presentations which
@@ -594,3 +594,37 @@ def add_mean_pupil_area_to_stimulus_presentations(
         ), axis=1,)
     stimulus_presentations["mean_pupil_area"] = stim_pupil_area
     return stimulus_presentations
+
+
+def add_reward_rate_to_stimulus_presentations_df(trials_df, stimulus_presentations_df):
+    '''
+    Parameters:
+    ____________
+    trials_df: Pandas.DataFrame
+        ophys_experiment.trials
+    stimulus_presentations_df: Pandas.DataFrame
+        ophys_experiment.stimulus_presentations
+
+    Returns:
+    ___________
+    stimulus_presentations_df: Pandas.DataFrame
+        with 'reward_rate' column
+    '''
+
+    last_time = 0
+    reward_rate_by_frame = []
+    trials_df['reward_rate'] = calculate_reward_rate(trials_df['response_latency'].values,
+                                              trials_df['start_time'], window = .5)
+
+    trials_df = trials_df[trials_df['aborted']==False]
+    for change_time in trials_df.change_time.values:
+        reward_rate = trials_df[trials_df.change_time == change_time].reward_rate.values[0]
+        for start_time in stimulus_presentations_df.start_time:
+            if (start_time < change_time) and (start_time > last_time):
+                reward_rate_by_frame.append(reward_rate)
+                last_time = start_time
+    # fill the last flashes with last value
+    for i in range(len(stimulus_presentations_df) - len(reward_rate_by_frame)):
+        reward_rate_by_frame.append(reward_rate_by_frame[-1])
+    stimulus_presentations_df['reward_rate'] = reward_rate_by_frame
+    return stimulus_presentations_df
