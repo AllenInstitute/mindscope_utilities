@@ -504,13 +504,13 @@ def add_mean_running_speed_to_stimulus_presentations(
     the stimulus start time.
 
     Args:
-        stimulus_presentations (pd.DataFrame): dataframe of 
+        stimulus_presentations (pd.DataFrame): dataframe of
             stimulus presentations.
             Must contain: 'start_time'
         running_speed (pd.DataFrame): dataframe of running speed.
             Must contain: 'speed', 'timestamps'
         time_window: array
-            timestamps in seconds, relative to the start of each stimulus 
+            timestamps in seconds, relative to the start of each stimulus
             to average the running speed.
             default = [-3,3]
     Returns:
@@ -521,7 +521,7 @@ def add_mean_running_speed_to_stimulus_presentations(
 
     Example:
         # get visual behavior cache
-        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc  # noqa E501
         cache_dir = SOME_LOCAL_DIR
         cache = bpc.from_s3_cache(cache_dir=cache_dir)
 
@@ -533,7 +533,7 @@ def add_mean_running_speed_to_stimulus_presentations(
         running_speed = ophys_experiment.running_speed.copy()
 
         # add running_speed to stim presentations
-        stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations, running_speed)
+        stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations, running_speed)  # noqa E501
     '''
 
     stim_running_speed = stimulus_presentations.apply(
@@ -553,11 +553,12 @@ def add_mean_pupil_area_to_stimulus_presentations(
         -3,
         3]):
     '''
-    Append a column to stimulus_presentations which contains the mean pupil area in a range relative to
+    Append a column to stimulus_presentations which contains
+    the mean pupil area in a range relative to
     the stimulus start time.
 
     Args:
-        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.
+        stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.  # noqa E501
             Must contain: 'start_time'
         eye_tracking (pd.DataFrame): dataframe of eye tracking data.
             Must contain: 'pupil_area', 'timestamps'
@@ -565,11 +566,12 @@ def add_mean_pupil_area_to_stimulus_presentations(
             relative to the start of each stimulus to average the pupil area.
     Returns:
         stimulus_presentations table with new column "mean_pupil_area" with the
-        mean pupil arae within the specified window following each stimulus presentation.
+        mean pupil arae within the specified window
+        following each stimulus presentation.
 
     Example:
         # get visual behavior cache
-        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+        from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc  # noqa E501
         cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
         cache = bpc.from_s3_cache(cache_dir=cache_dir)
 
@@ -581,7 +583,7 @@ def add_mean_pupil_area_to_stimulus_presentations(
         eye_tracking = ophys_experiment.eye_tracking.copy()
 
         # add pupil area to stim presentations
-        stimulus_presentations = add_mean_pupil_area_to_stimulus_presentations(stimulus_presentations, eye_tracking)
+        stimulus_presentations = add_mean_pupil_area_to_stimulus_presentations(stimulus_presentations, eye_tracking)  # noqa E501
     '''
     stim_pupil_area = stimulus_presentations.apply(
         lambda row: get_trace_average(
