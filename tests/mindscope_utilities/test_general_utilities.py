@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from mindscope_utilities import event_triggered_response, get_time_array
+from mindscope_utilities import event_triggered_response, get_time_array, index_of_nearest_value, slice_inds_and_offsets
 
 def test_get_time_array_with_sampling_rate():
     '''
@@ -78,7 +78,8 @@ def test_get_time_array_with_step_size():
     assert (t_array == np.array([-1., -0.5,  0.,  0.5])).all()
 
     # this should give [-1, 0.75) with steps of 0.5.
-    # becuase the desired range (1.75) is not evenly divisible by the step size (0.5), the array should end before the desired endpoint
+    # becuase the desired range (1.75) is not evenly divisible by the step size (0.5), 
+    # the array should end before the desired endpoint
     t_array = get_time_array(
         t_start=-1, 
         t_end=0.75, 
@@ -115,6 +116,35 @@ def test_get_time_array_assertion_errors():
     except AssertionError:
         # expect the AssertionError, so this test should pass
         pass
+
+
+def test_index_of_nearest_value():
+    data_timestamps = np.arange(0, 1.2, 0.1)
+    event_timestamps = np.array([0.21, 1.01, 1.0499, 1.05, 1.099])
+
+    calculated_indices = index_of_nearest_value(data_timestamps, event_timestamps)
+
+    expected_indices = np.array([2, 10, 10, 11, 11])
+
+    assert np.all(calculated_indices == expected_indices)
+
+
+def test_slice_inds_and_offsets():
+    data_timestamps = np.arange(0, 6, 0.1)
+    event_timestamps = [1.01, 2.05, 3.1, 4.2, 5.21]
+    time_window = [-0.5, 0.5]
+    event_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(
+        data_timestamps,
+        event_timestamps,
+        time_window,
+        sampling_rate=None,
+        include_endpoint=True
+    )
+
+    assert np.all(event_indices == np.array([10, 20, 31, 42, 52]))
+    assert start_ind_offset == -5
+    assert end_ind_offset == 6
+    assert np.all(trace_timebase == np.array([-0.5, -0.4, -0.3, -0.2, -0.1,  0. ,  0.1,  0.2,  0.3,  0.4,  0.5]))
 
 
 def test_event_triggered_response():
