@@ -220,8 +220,10 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
                 t_after = -1 would start the window 1 second before each event
         Note: cannot pass both t_end and t_after
     output_sampling_rate : float
-        desired sampling of output
-            (input data will be interpolated to this sampling rate)
+        Desired sampling of output.
+        Input data will be interpolated to this sampling rate if interpolate = True (default).
+        If passing interpolate = False, the sampling rate of the input timeseries will 
+        be used and output_sampling_rate should not be specified.
     include_endpoint : Boolean
         Passed to np.linspace to calculate relative time
         If True, stop is the last sample. Otherwise, it is not included.
@@ -293,6 +295,9 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
 
     assert t_before is None or t_start is None, 'cannot pass both t_start and t_before'  # noqa: E501
     assert t_after is None or t_end is None, 'cannot pass both t_after and t_end'  # noqa: E501
+
+    if interpolate is False:
+        assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate'
 
     # assign time values to t_start and t_end
     if t_start is None:
