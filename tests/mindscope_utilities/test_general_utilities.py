@@ -78,7 +78,8 @@ def test_get_time_array_with_step_size():
     assert (t_array == np.array([-1., -0.5,  0.,  0.5])).all()
 
     # this should give [-1, 0.75) with steps of 0.5.
-    # becuase the desired range (1.75) is not evenly divisible by the step size (0.5), the array should end before the desired endpoint
+    # becuase the desired range (1.75) is not evenly divisible by the step size (0.5), 
+    # the array should end before the desired endpoint
     t_array = get_time_array(
         t_start=-1, 
         t_end=0.75, 
