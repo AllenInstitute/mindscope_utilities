@@ -81,7 +81,7 @@ def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_e
 
     # value as a linearly spaced time array
     if not step_size:
-        step_size = 1/sampling_rate
+        step_size = 1 / sampling_rate
     # define a time array
     n_steps = (t_end - t_start) / step_size
     if n_steps != int(n_steps):
@@ -89,7 +89,7 @@ def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_e
         # to end on the desired t_after using the defined sampling rate
         # we need to round down and include the endpoint
         n_steps = int(n_steps)
-        t_end_adjusted = t_start + n_steps*step_size
+        t_end_adjusted = t_start + n_steps * step_size
         include_endpoint = True
     else:
         t_end_adjusted = t_end
@@ -222,7 +222,7 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     output_sampling_rate : float
         Desired sampling of output.
         Input data will be interpolated to this sampling rate if interpolate = True (default).
-        If passing interpolate = False, the sampling rate of the input timeseries will 
+        If passing interpolate = False, the sampling rate of the input timeseries will
         be used and output_sampling_rate should not be specified.
     include_endpoint : Boolean
         Passed to np.linspace to calculate relative time
@@ -301,7 +301,7 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
 
     # assign time values to t_start and t_end
     if t_start is None:
-        t_start = -1*t_before
+        t_start = -1 * t_before
     if t_end is None:
         t_end = t_after
 
