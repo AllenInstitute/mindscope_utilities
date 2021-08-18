@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 import mindscope_utilities
+from allensdk.brain_observatory.behavior.trials_processing import calculate_reward_rate
 
 
 def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
@@ -614,11 +615,12 @@ def add_reward_rate_to_stimulus_presentations_df(trials_df, stimulus_presentatio
     last_time = 0
     reward_rate_by_frame = []
     trials_df['reward_rate'] = calculate_reward_rate(trials_df['response_latency'].values,
-                                              trials_df['start_time'], window = .5)
+                                                     trials_df['start_time'], window=.5)
 
-    trials_df = trials_df[trials_df['aborted']==False]
+    trials_df = trials_df[trials_df['aborted'] == False]
     for change_time in trials_df.change_time.values:
-        reward_rate = trials_df[trials_df.change_time == change_time].reward_rate.values[0]
+        reward_rate = trials_df[trials_df.change_time ==
+                                change_time].reward_rate.values[0]
         for start_time in stimulus_presentations_df.start_time:
             if (start_time < change_time) and (start_time > last_time):
                 reward_rate_by_frame.append(reward_rate)
