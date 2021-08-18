@@ -221,8 +221,8 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         Note: cannot pass both t_end and t_after
     output_sampling_rate : float
         Desired sampling of output.
-        Input data will be interpolated to this sampling rate if interpolate = True (default).
-        If passing interpolate = False, the sampling rate of the input timeseries will
+        Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
+        If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
         be used and output_sampling_rate should not be specified.
     include_endpoint : Boolean
         Passed to np.linspace to calculate relative time
@@ -297,7 +297,7 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     assert t_after is None or t_end is None, 'cannot pass both t_after and t_end'  # noqa: E501
 
     if interpolate is False:
-        assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate'
+        assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate' # NOQA E501
 
     # assign time values to t_start and t_end
     if t_start is None:
