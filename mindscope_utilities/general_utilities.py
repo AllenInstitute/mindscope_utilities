@@ -298,7 +298,7 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     assert t_after is None or t_end is None, 'cannot pass both t_after and t_end'  # noqa: E501
 
     if interpolate is False:
-        assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate' # NOQA E501
+        assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate'  # NOQA E501
 
     # assign time values to t_start and t_end
     if t_start is None:
@@ -397,6 +397,7 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         )
         # return the tidy event triggered responses
         return tidy_etr
+
 
 def dprime(hit_rate=None, fa_rate=None, go_trials=None, catch_trials=None, limits=False):
     '''
@@ -509,8 +510,10 @@ def dprime(hit_rate=None, fa_rate=None, go_trials=None, catch_trials=None, limit
     assert hit_rate is None or go_trials is None, 'do not pass both `hit_rate` and a boolean vector of `go_trials`'
     assert fa_rate is None or catch_trials is None, 'do not pass both `fa_rate` and a boolean vector of `catch_trials`'
 
-    assert not (hit_rate is not None and limits == True), 'limits can only be calculated if a go_trials vector is passed, not a hit_rate'
-    assert not (fa_rate is not None and limits == True), 'limits can only be calculated if a catch_trials vector is passed, not a fa_rate'
+    assert not (hit_rate is not None and limits ==
+                True), 'limits can only be calculated if a go_trials vector is passed, not a hit_rate'
+    assert not (fa_rate is not None and limits ==
+                True), 'limits can only be calculated if a catch_trials vector is passed, not a fa_rate'
 
     # calculate hit and fa rates as mean of boolean vectors
     if hit_rate is None:
@@ -525,8 +528,10 @@ def dprime(hit_rate=None, fa_rate=None, go_trials=None, catch_trials=None, limit
         limits = (0.01, 0.99)
     elif limits == True:
         # clip the hit and fa rate based on trial count
-        hit_rate = response_probabilities_trial_number_limit(hit_rate, len(go_trials))
-        fa_rate = response_probabilities_trial_number_limit(fa_rate, len(catch_trials))
+        hit_rate = response_probabilities_trial_number_limit(
+            hit_rate, len(go_trials))
+        fa_rate = response_probabilities_trial_number_limit(
+            fa_rate, len(catch_trials))
 
     if limits != True:
         # Limit values in order to avoid d' infinity
