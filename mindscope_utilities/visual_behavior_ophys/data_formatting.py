@@ -422,10 +422,7 @@ def add_rewards_to_stimulus_presentations(
     reward_times = rewards['timestamps'].values
     rewards_each_stim = stimulus_presentations.apply(
         lambda row: reward_times[
-            ((reward_times > row["start_time"] +
-              time_window[0]) & (
-                reward_times < row["start_time"] +
-                time_window[1]))],
+            ((reward_times > row["start_time"] + time_window[0]) & (reward_times < row["start_time"] + time_window[1]))],
         axis=1,
     )
     stimulus_presentations["rewards"] = rewards_each_stim
@@ -475,10 +472,7 @@ def add_licks_to_stimulus_presentations(
     lick_times = licks['timestamps'].values
     licks_each_stim = stimulus_presentations.apply(
         lambda row: lick_times[
-            ((lick_times > row["start_time"] +
-              time_window[0]) & (
-                lick_times < row["start_time"] +
-                time_window[1]))],
+            ((lick_times > row["start_time"] + time_window[0]) & (lick_times < row["start_time"] + time_window[1]))],
         axis=1,
     )
     stimulus_presentations["licks"] = licks_each_stim
@@ -617,10 +611,9 @@ def add_reward_rate_to_stimulus_presentations_df(trials_df, stimulus_presentatio
     trials_df['reward_rate'] = calculate_reward_rate(trials_df['response_latency'].values,
                                                      trials_df['start_time'], window=.5)
 
-    trials_df = trials_df[trials_df['aborted'] == False]
+    trials_df = trials_df[trials_df['aborted'] is False]
     for change_time in trials_df.change_time.values:
-        reward_rate = trials_df[trials_df.change_time ==
-                                change_time].reward_rate.values[0]
+        reward_rate = trials_df[trials_df.change_time == change_time].reward_rate.values[0]
         for start_time in stimulus_presentations_df.start_time:
             if (start_time < change_time) and (start_time > last_time):
                 reward_rate_by_frame.append(reward_rate)
