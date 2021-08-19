@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from mindscope_utilities import event_triggered_response, get_time_array, index_of_nearest_value, slice_inds_and_offsets
+from mindscope_utilities import *
 
 def test_get_time_array_with_sampling_rate():
     '''
@@ -179,3 +179,51 @@ def test_event_triggered_response():
 
     # Assert that the dataframe is unchanged
     pd.testing.assert_frame_equal(df, df_copy)
+
+
+def test_response_probabilities_trial_number_limit():
+    assert response_probabilities_trial_number_limit(1, 5) == 0.9
+
+    assert response_probabilities_trial_number_limit(1, 50) == 0.99
+
+    assert response_probabilities_trial_number_limit(1, 100) == 0.995
+
+    assert response_probabilities_trial_number_limit(0.5, 100) == 0.5
+
+    assert response_probabilities_trial_number_limit(0, 100) == 0.005
+
+
+def test_dprime():
+
+    d_prime = dprime(1.0, 0.0)
+    assert d_prime == 4.6526957480816815
+
+    d_prime = dprime(1.0, 0.0, limits=False)
+    assert d_prime == 4.6526957480816815
+
+    d_prime = dprime(1.0, 0.0, limits=(0.01, 0.99))
+    assert d_prime == 4.6526957480816815
+
+    d_prime = dprime(1.0, 0.0, limits=(0.0, 1.0))
+    assert d_prime == np.inf
+
+    d_prime = dprime(
+        go_trials=[1, 1, 1, 1, 1, 1, 1],
+        catch_trials=[0, 0],
+        limits=True
+    )
+    assert d_prime == 2.1397235428816046
+
+    d_prime = dprime(
+        go_trials=[1, 1, 1, 1, 1, 1, 1],
+        catch_trials=[0, 0],
+        limits=False
+    )
+    assert d_prime == 4.6526957480816815
+
+    d_prime = dprime(
+        go_trials=[0, 1, 0, 1],
+        catch_trials=[0, 1],
+        limits=False
+    )
+    assert d_prime == 0.0
