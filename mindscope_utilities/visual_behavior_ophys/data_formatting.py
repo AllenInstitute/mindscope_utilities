@@ -620,6 +620,121 @@ def add_reward_rate_to_stimulus_presentations_df(trials_df, stimulus_presentatio
     return stimulus_presentations_df
 
 
+def annotate_stimuli(dataset, inplace=False):
+    '''
+    adds the following columns to the stimulus_presentations table, facilitating calculation
+    of behavior performance based entirely on the stimulus_presentations table:
+
+    'trials_id': the corresponding ID of the trial in the trials table in which the stimulus occurred
+    'previous_image_name': the name of the stimulus on the last flash (will list 'omitted' if last stimulus is omitted)
+    'next_start_time': The time of the next stimulus start (including the time of the omitted stimulus if the next stimulus is omitted)
+    'auto_rewarded': True for trials where rewards were delivered regardless of animal response
+    'trial_stimulus_index': index of the given stimulus on the current trial. For example, the first stimulus in a trial has index 0, the second stimulus in a trial has index 1, etc
+    'response_lick': Boolean, True if a lick followed the stimulus
+    'response_lick_times': list of all lick times following this stimulus
+    'response_lick_latency': time difference between first lick and stimulus
+    'previous_response_on_trial': Boolean, True if there has been a lick to a previous stimulus on this trial
+    'could_change': Boolean, True if the stimulus met the conditions that would have allowed
+                    to be chosen as the change stimulus by camstim:
+                        * at least the fourth stimulus flash in the trial
+                        * not preceded by any licks on that trial
+
+    Parameters:
+    -----------
+    dataset : BehaviorSession or BehaviorOphysSession object
+        an SDK session object
+    inplace : Boolean
+        If True, operates on the dataset.stimulus_presentations object directly and returns None
+        If False (default), operates on a copy and returns the copy
+
+    Returns:
+    --------
+    Pandas.DataFrame (if inplace == False)
+    None (if inplace == True)
+    '''
+
+    if inplace:
+        stimulus_presentations = dataset.stimulus_presentations
+    else:
+        stimulus_presentations = dataset.stimulus_presentations.copy()
+
+    # add previous_image_name
+    stimulus_presentations['previous_image_name'] = stimulus_presentations['image_name'].shift()
+
+    # add next_start_time
+    stimulus_presentations['next_start_time'] = stimulus_presentations['start_time'].shift(-1)
+
+    # add trials_id and trial_stimulus_index
+    stimulus_presentations['trials_id'] = None
+    stimulus_presentations['trial_stimulus_index'] = None
+    last_trial_id = -1
+    trial_stimulus_index = 0
+
+    # add response_lick, response_lick_times, response_lick_latency
+    stimulus_presentations['response_lick'] = False
+    stimulus_presentations['response_lick_times'] = None
+    stimulus_presentations['response_lick_latency'] = None
+
+    # make a copy of trials with 'start_time' as index to speed lookup
+    trials = dataset.trials.copy().reset_index().set_index('start_time')
+
+    # make a copy of licks with 'timestamps' as index to speed lookup
+    licks = dataset.licks.copy().reset_index().set_index('timestamps')
+
+    # iterate over every stimulus
+    for idx, row in stimulus_presentations.iterrows():
+        # trials_id is last trials_id with start_time <= stimulus_time
+        try:
+            trials_id = trials.loc[:row['start_time']].iloc[-1]['trials_id']
+        except IndexError:
+            trials_id = -1
+        stimulus_presentations.at[idx, 'trials_id'] = trials_id
+
+        if trials_id == last_trial_id:
+            trial_stimulus_index += 1
+        else:
+            trial_stimulus_index = 0
+            last_trial_id = trials_id
+        stimulus_presentations.at[idx, 'trial_stimulus_index'] = trial_stimulus_index
+
+        stim_licks = licks.loc[row['start_time']:row['next_start_time'] - 1e-9].index.to_list()  # note the `- 1e-9` acts as a <, as opposed to a <=
+
+        stimulus_presentations.at[idx, 'response_lick_times'] = stim_licks
+        if len(stim_licks) > 0:
+            stimulus_presentations.at[idx, 'response_lick'] = True
+            stimulus_presentations.at[idx, 'response_lick_latency'] = stim_licks[0] - row['start_time']
+
+    # merge in auto_rewarded column from trials table
+    stimulus_presentations = stimulus_presentations.reset_index().merge(
+        dataset.trials[['auto_rewarded']],
+        on='trials_id',
+        how='left',
+    ).set_index('stimulus_presentations_id')
+
+    # add previous_response_on_trial
+    stimulus_presentations['previous_response_on_trial'] = False
+    # set 'stimulus_presentations_id' and 'trials_id' as indices to speed lookup
+    stimulus_presentations = stimulus_presentations.reset_index().set_index(['stimulus_presentations_id', 'trials_id'])
+    for idx, row in stimulus_presentations.iterrows():
+        stim_id, trials_id = idx
+        # get all stimuli before the current on the current trial
+        mask = (stimulus_presentations.index.get_level_values(0) < stim_id) & (stimulus_presentations.index.get_level_values(1) == trials_id)
+        # check to see if any previous stimuli have a response lick
+        stimulus_presentations.at[idx, 'previous_response_on_trial'] = stimulus_presentations[mask]['response_lick'].any()
+    # set the index back to being just 'stimulus_presentations_id'
+    stimulus_presentations = stimulus_presentations.reset_index().set_index('stimulus_presentations_id')
+
+    # add could_change
+    stimulus_presentations['could_change'] = False
+    for idx, row in stimulus_presentations.iterrows():
+        # check if we meet conditions where a change could occur on this stimulus (at least 4th flash of trial, no previous change on trial)
+        if row['trial_stimulus_index'] >= 4 and row['previous_response_on_trial'] == False and row['image_name'] != 'omitted' and row['previous_image_name'] != 'omitted':
+            stimulus_presentations.at[idx, 'could_change'] = True
+
+    if inplace == False:
+        return stimulus_presentations
+
+
 def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, engaged_only=True):
     '''
     calculates the response matrix for each individual image pair in the `stimulus` dataframe
@@ -627,9 +742,8 @@ def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, eng
     Parameters:
     -----------
     stimuli: Pandas.DataFrame
-        From experiment.stimulus_presentations, after adding engagement state and annotating as follows:
-            experiment.stimulus_presentations = loading.add_model_outputs_to_stimulus_presentations(experiment.stimulus_presentations, behavior_session_id')
-            stimulus_presentations = vbu.annotate_stimuli(experiment, inplace = False)
+        From experiment.stimulus_presentations, after annotating as follows:
+            annotate_stimuli(experiment, inplace = True)
     aggfunc: function
         function to apply to calculation. Default = np.mean
         other options include np.size (to get counts) or np.median
@@ -637,6 +751,7 @@ def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, eng
         if True (default), sorts outputs by column means
     engaged_only: Boolean
         If True (default), calculates only on engaged trials
+        Will throw an assertion error if True and 'engagement_state' column does not exist
 
     Returns:
     --------
@@ -649,6 +764,7 @@ def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, eng
     '''
     stimuli_to_analyze = stimuli.query('auto_rewarded == False and could_change == True and image_name != "omitted" and previous_image_name != "omitted"')
     if engaged_only:
+        assert 'engagement_state' in stimuli_to_analyze.columns, 'stimuli must have column called "engagement_state" if passing engaged_only = True'
         stimuli_to_analyze = stimuli_to_analyze.query('engagement_state == "engaged"')
 
     response_matrix = pd.pivot_table(
@@ -668,20 +784,20 @@ def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, eng
     return response_matrix
 
 
-def calculate_d_prime_matrix(stimuli, sort_by_column=True, engaged_only=True):
+def calculate_dprime_matrix(stimuli, sort_by_column=True, engaged_only=True):
     '''
     calculates the d' matrix for each individual image pair in the `stimulus` dataframe
 
     Parameters:
     -----------
     stimuli: Pandas.DataFrame
-        From experiment.stimulus_presentations, after adding engagement state and annotating as follows:
-            experiment.stimulus_presentations = loading.add_model_outputs_to_stimulus_presentations(experiment.stimulus_presentations, behavior_session_id')
-            stimulus_presentations = vbu.annotate_stimuli(experiment, inplace = False)
+        From experiment.stimulus_presentations, after annotating as follows:
+            annotate_stimuli(experiment, inplace = True)
     sort_by_column: Boolean
         if True (default), sorts outputs by column means
     engaged_only: Boolean
         If True (default), calculates only on engaged trials
+        Will throw an assertion error if True and 'engagement_state' column does not exist
 
     Returns:
     --------
@@ -692,12 +808,15 @@ def calculate_d_prime_matrix(stimuli, sort_by_column=True, engaged_only=True):
         catch trials are on diagonal
 
     '''
+    if engaged_only:
+        assert 'engagement_state' in stimuli.columns, 'stimuli must have column called "engagement_state" if passing engaged_only = True'
+    
     response_matrix = calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=sort_by_column, engaged_only=engaged_only)
 
     d_prime_matrix = response_matrix.copy()
     for row in response_matrix.columns:
         for col in response_matrix.columns:
-            d_prime_matrix.loc[row][col] = vbu.dprime(
+            d_prime_matrix.loc[row][col] = mindscope_utilities.dprime(
                 hit_rate=response_matrix.loc[row][col],
                 fa_rate=response_matrix[col][col],
                 limits=False
