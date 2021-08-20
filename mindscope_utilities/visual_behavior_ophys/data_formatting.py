@@ -728,10 +728,10 @@ def annotate_stimuli(dataset, inplace=False):
     stimulus_presentations['could_change'] = False
     for idx, row in stimulus_presentations.iterrows():
         # check if we meet conditions where a change could occur on this stimulus (at least 4th flash of trial, no previous change on trial)
-        if row['trial_stimulus_index'] >= 4 and row['previous_response_on_trial'] == False and row['image_name'] != 'omitted' and row['previous_image_name'] != 'omitted':
+        if row['trial_stimulus_index'] >= 4 and row['previous_response_on_trial'] is False and row['image_name'] != 'omitted' and row['previous_image_name'] != 'omitted':
             stimulus_presentations.at[idx, 'could_change'] = True
 
-    if inplace == False:
+    if inplace is False:
         return stimulus_presentations
 
 
@@ -810,7 +810,7 @@ def calculate_dprime_matrix(stimuli, sort_by_column=True, engaged_only=True):
     '''
     if engaged_only:
         assert 'engagement_state' in stimuli.columns, 'stimuli must have column called "engagement_state" if passing engaged_only = True'
-    
+
     response_matrix = calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=sort_by_column, engaged_only=engaged_only)
 
     d_prime_matrix = response_matrix.copy()

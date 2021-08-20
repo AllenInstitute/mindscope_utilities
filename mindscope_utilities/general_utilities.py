@@ -510,10 +510,8 @@ def dprime(hit_rate=None, fa_rate=None, go_trials=None, catch_trials=None, limit
     assert hit_rate is None or go_trials is None, 'do not pass both `hit_rate` and a boolean vector of `go_trials`'
     assert fa_rate is None or catch_trials is None, 'do not pass both `fa_rate` and a boolean vector of `catch_trials`'
 
-    assert not (hit_rate is not None and limits ==
-                True), 'limits can only be calculated if a go_trials vector is passed, not a hit_rate'
-    assert not (fa_rate is not None and limits ==
-                True), 'limits can only be calculated if a catch_trials vector is passed, not a fa_rate'
+    assert not (hit_rate is not None and limits is True), 'limits can only be calculated if a go_trials vector is passed, not a hit_rate'
+    assert not (fa_rate is not None and limits is True), 'limits can only be calculated if a catch_trials vector is passed, not a fa_rate'
 
     # calculate hit and fa rates as mean of boolean vectors
     if hit_rate is None:
@@ -523,17 +521,17 @@ def dprime(hit_rate=None, fa_rate=None, go_trials=None, catch_trials=None, limit
 
     Z = norm.ppf
 
-    if limits == False:
+    if limits is False:
         # if limits are False, apply default
         limits = (0.01, 0.99)
-    elif limits == True:
+    elif limits is True:
         # clip the hit and fa rate based on trial count
         hit_rate = response_probabilities_trial_number_limit(
             hit_rate, len(go_trials))
         fa_rate = response_probabilities_trial_number_limit(
             fa_rate, len(catch_trials))
 
-    if limits != True:
+    if limits is not True:
         # Limit values in order to avoid d' infinity
         hit_rate = np.clip(hit_rate, limits[0], limits[1])
         fa_rate = np.clip(fa_rate, limits[0], limits[1])
