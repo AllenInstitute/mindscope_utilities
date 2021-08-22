@@ -610,9 +610,9 @@ def add_reward_rate_to_stimulus_presentations(trials, stimulus_presentations):
     trials['reward_rate'] = calculate_reward_rate(trials['response_latency'].values,
                                                      trials['start_time'], window=.5)
 
-    trials_df = trials_df[trials_df['aborted'] == False]
-    for change_time in trials_df.change_time.values:
-        reward_rate = trials_df[trials_df.change_time ==
+    trials = trials[trials['aborted'] == False]
+    for change_time in trials.change_time.values:
+        reward_rate = trials[trials.change_time ==
                                 change_time].reward_rate.values[0]
         for start_time in stimulus_presentations.start_time:
             if (start_time < change_time) and (start_time > last_time):
