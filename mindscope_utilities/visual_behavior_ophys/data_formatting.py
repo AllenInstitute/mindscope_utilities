@@ -607,7 +607,7 @@ def add_reward_rate_to_stimulus_presentations(trials, stimulus_presentations):
 
     last_time = 0
     reward_rate_by_frame = []
-    trials_df['reward_rate'] = calculate_reward_rate(trials['response_latency'].values,
+    trials['reward_rate'] = calculate_reward_rate(trials['response_latency'].values,
                                                      trials['start_time'], window=.5)
 
     trials_df = trials_df[trials_df['aborted'] == False]
