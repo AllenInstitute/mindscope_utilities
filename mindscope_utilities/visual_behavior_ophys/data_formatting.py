@@ -590,6 +590,7 @@ def add_mean_pupil_area_to_stimulus_presentations(
     stimulus_presentations["mean_pupil_area"] = stim_pupil_area
     return stimulus_presentations
 
+
 def add_reward_rate_to_stimulus_presentations(trials, stimulus_presentations):
     '''
     Parameters:
@@ -608,12 +609,12 @@ def add_reward_rate_to_stimulus_presentations(trials, stimulus_presentations):
     last_time = 0
     reward_rate_by_frame = []
     trials['reward_rate'] = calculate_reward_rate(trials['response_latency'].values,
-                                                     trials['start_time'], window=.5)
+                                                  trials['start_time'], window=.5)
 
-    trials = trials[trials['aborted'] == False]
+    trials = trials[trials['aborted'] == False] # NOQA
     for change_time in trials.change_time.values:
-        reward_rate = trials[trials.change_time ==
-                                change_time].reward_rate.values[0]
+        reward_rate = trials[trials.change_time == # NOQA
+                             change_time].reward_rate.values[0]
         for start_time in stimulus_presentations.start_time:
             if (start_time < change_time) and (start_time > last_time):
                 reward_rate_by_frame.append(reward_rate)
@@ -622,4 +623,5 @@ def add_reward_rate_to_stimulus_presentations(trials, stimulus_presentations):
     for i in range(len(stimulus_presentations) - len(reward_rate_by_frame)):
         reward_rate_by_frame.append(reward_rate_by_frame[-1])
     stimulus_presentations['reward_rate'] = reward_rate_by_frame
+
     return stimulus_presentations
