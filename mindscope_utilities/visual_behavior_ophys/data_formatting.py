@@ -591,7 +591,7 @@ def add_mean_pupil_area_to_stimulus_presentations(
     return stimulus_presentations
 
 
-def add_reward_rate_to_stimulus_presentations_df(trials_df, stimulus_presentations_df):
+def add_reward_rate_to_stimulus_presentations(trials, stimulus_presentations):
     '''
     Parameters:
     ____________
@@ -608,18 +608,20 @@ def add_reward_rate_to_stimulus_presentations_df(trials_df, stimulus_presentatio
 
     last_time = 0
     reward_rate_by_frame = []
-    trials_df['reward_rate'] = calculate_reward_rate(trials_df['response_latency'].values,
-                                                     trials_df['start_time'], window=.5)
+    trials['reward_rate'] = calculate_reward_rate(trials['response_latency'].values,
+                                                  trials['start_time'], window=.5)
 
-    trials_df = trials_df[trials_df['aborted'] is False]
-    for change_time in trials_df.change_time.values:
-        reward_rate = trials_df[trials_df.change_time == change_time].reward_rate.values[0]
-        for start_time in stimulus_presentations_df.start_time:
+    trials = trials[trials['aborted'] == False] # NOQA
+    for change_time in trials.change_time.values:
+        reward_rate = trials[trials.change_time == # NOQA
+                             change_time].reward_rate.values[0]
+        for start_time in stimulus_presentations.start_time:
             if (start_time < change_time) and (start_time > last_time):
                 reward_rate_by_frame.append(reward_rate)
                 last_time = start_time
     # fill the last flashes with last value
-    for i in range(len(stimulus_presentations_df) - len(reward_rate_by_frame)):
+    for i in range(len(stimulus_presentations) - len(reward_rate_by_frame)):
         reward_rate_by_frame.append(reward_rate_by_frame[-1])
-    stimulus_presentations_df['reward_rate'] = reward_rate_by_frame
-    return stimulus_presentations_df
+    stimulus_presentations['reward_rate'] = reward_rate_by_frame
+
+    return stimulus_presentations
