@@ -13,6 +13,7 @@ setup(name='mindscope_utilities',
         'flake8',
         'pytest',
         'allensdk',
+        'xarray'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
