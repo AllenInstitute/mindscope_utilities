@@ -76,7 +76,7 @@ def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
 
 
 def get_event_timestamps(
-        stimulus_presentations_df,
+        stimulus_presentations,
         event_type='all',
         onset='start_time'):
     '''
@@ -84,37 +84,31 @@ def get_event_timestamps(
 
     Parameters:
     ___________
-    stimulus_presentations_df: Pandas.DataFrame
+    stimulus_presentations: Pandas.DataFrame
         Output of stimulus_presentations with stimulus trial metadata
     event_type: str
-        Event of interest. Event_type can be any column in the stimulus_presentations_df,  # noqa E501
+        Event of interest. Event_type can be any column in the stimulus_presentations,  # noqa E501
         including 'omissions' or 'change'. Default is 'all', gets all trials  # noqa E501
     onset: str
         optons: 'start_time' - onset of the stimulus, 'stop_time' - offset of the stimulus
-        stimulus_presentations_df has a multiple timestamps to align data to. Default = 'start_time'.
+        stimulus_presentations has a multiple timestamps to align data to. Default = 'start_time'.
 
     Returns:
         event_times: array
-        event_ids: array
     --------
     '''
     if event_type == 'all':
-        event_times = stimulus_presentations_df[onset]
-        event_ids = stimulus_presentations_df.index.values
+        event_times = stimulus_presentations[onset]
     elif event_type == 'images':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False][onset]  # noqa E501
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted'] == False].index.values  # noqa E501
+        event_times = stimulus_presentations[stimulus_presentations['omitted'] == False][onset]  # noqa E501
     elif event_type == 'omissions' or event_type == 'omitted':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['omitted']][onset]  # noqa E501
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['omitted']].index.values  # noqa E501
+        event_times = stimulus_presentations[stimulus_presentations['omitted']][onset]  # noqa E501
     elif event_type == 'changes' or event_type == 'is_change':
-        event_times = stimulus_presentations_df[stimulus_presentations_df['is_change']][onset]  # noqa E501
-        event_ids = stimulus_presentations_df[stimulus_presentations_df['is_change']].index.values  # noqa E501
+        event_times = stimulus_presentations[stimulus_presentations['is_change']][onset]  # noqa E501
     else:
-        event_times = stimulus_presentations_df[stimulus_presentations_df[event_type]][onset]  # noqa E501
-        event_ids = stimulus_presentations_df[stimulus_presentations_df[event_type]].index.values  # noqa E501
+        event_times = stimulus_presentations[stimulus_presentations[event_type]][onset]  # noqa E501
 
-    return event_times, event_ids
+    return event_times
 
 
 def get_stimulus_response_xr(ophys_experiment,
@@ -163,11 +157,12 @@ def get_stimulus_response_xr(ophys_experiment,
     neural_data = build_tidy_cell_df(ophys_experiment)
 
     # load stimulus_presentations table
-    stimulus_presentations_df = ophys_experiment.stimulus_presentations
+    stimulus_presentations = ophys_experiment.stimulus_presentations
 
     # get event times and event ids (original order in the stimulus flow)
-    event_times, event_ids = get_event_timestamps(
-        stimulus_presentations_df, event_type)
+    event_times = get_event_timestamps(
+        stimulus_presentations, event_type)
+    event_ids = event_times.index.values
 
     # all cell specimen ids in an ophys_experiment
     cell_ids = np.unique(neural_data['cell_specimen_id'].values)
@@ -595,14 +590,14 @@ def add_reward_rate_to_stimulus_presentations(trials, stimulus_presentations):
     '''
     Parameters:
     ____________
-    trials_df: Pandas.DataFrame
+    trials: Pandas.DataFrame
         ophys_experiment.trials
-    stimulus_presentations_df: Pandas.DataFrame
+    stimulus_presentations: Pandas.DataFrame
         ophys_experiment.stimulus_presentations
 
     Returns:
     ___________
-    stimulus_presentations_df: Pandas.DataFrame
+    stimulus_presentations: Pandas.DataFrame
         with 'reward_rate' column
     '''
 
