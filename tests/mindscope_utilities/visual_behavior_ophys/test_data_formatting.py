@@ -2,6 +2,8 @@ import pandas as pd
 from mindscope_utilities import visual_behavior_ophys
 import allensdk.brain_observatory.behavior.behavior_project_cache as cache
 
+experiment_id = 951980471
+
 
 def test_build_tidy_cell_df(simulated_experiment_fixture):
     '''
