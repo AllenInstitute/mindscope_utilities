@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from mindscope_utilities import visual_behavior_ophys
+import allensdk.brain_observatory.behavior.behavior_project_cache as cache
 
 
 def test_build_tidy_cell_df(simulated_experiment_fixture):
@@ -38,3 +39,11 @@ def test_build_tidy_cell_df(simulated_experiment_fixture):
     actual_2 = tidy_cell_df.query('cell_specimen_id == 2 and timestamps == 0.5').reset_index(drop=True)
     pd.testing.assert_frame_equal(actual_2[cols], ans_2[cols])
 
+def test_get_event_timestamps(experiment_id):
+    ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
+    stimulus_presentations = ophys_experiment.stimulus_presentations
+    timestamp = 322.78641
+    event_times = ophys.get_event_timestamps(stimulus_presentations, 'changes')
+    asset(event_times[0], timestamp)
+    
+    
