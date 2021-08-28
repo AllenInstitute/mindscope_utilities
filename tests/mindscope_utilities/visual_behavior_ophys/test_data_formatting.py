@@ -1,10 +1,11 @@
 import pandas as pd
+import numpy as np
 from mindscope_utilities import visual_behavior_ophys
 from allensdk.brain_observatory.behavior.behavior_project_cache \
     import VisualBehaviorOphysProjectCache
 
 experiment_id = 951980471
-cache_dir = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_cache'
+cache_dir = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_cache'
 cache = VisualBehaviorOphysProjectCache.from_s3_cache(
     cache_dir=cache_dir)
 ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
@@ -59,4 +60,5 @@ def test_get_event_timestamps(ophys_experiment):
     timestamp = 322.78641
     event_times = visual_behavior_ophys.get_event_timestamps(
         stimulus_presentations, 'changes')
-    assert(event_times[0] == timestamp)
+    print(event_times.iloc[0])
+    assert np.isclose(event_times.iloc[0], timestamp, rtol=0.01)
