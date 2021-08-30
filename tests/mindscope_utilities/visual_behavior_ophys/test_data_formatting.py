@@ -5,6 +5,9 @@ from allensdk.brain_observatory.behavior.behavior_project_cache \
     import VisualBehaviorOphysProjectCache
 
 experiment_id = 951980471
+cache_dir = r'~/mindscope_utilities_test/data'
+cache = VisualBehaviorOphysProjectCache.from_s3_cache(cache_dir)
+ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
 
 
 def test_build_tidy_cell_df(simulated_experiment_fixture):
@@ -51,15 +54,7 @@ def test_build_tidy_cell_df(simulated_experiment_fixture):
     pd.testing.assert_frame_equal(actual_2[cols], ans_2[cols])
 
 
-def get_ophys_experiment_test(experiment_id):
-    cache_dir = r'~/mindscope_utilities_test/data'
-    cache = VisualBehaviorOphysProjectCache.from_s3_cache(cache_dir)
-    ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
-    return ophys_experiment
-
-
 def test_get_event_timestamps():
-    ophys_experiment = get_ophys_experiment_test()
     stimulus_presentations = ophys_experiment.stimulus_presentations
     timestamp = 322.78641
     event_times = visual_behavior_ophys.get_event_timestamps(
