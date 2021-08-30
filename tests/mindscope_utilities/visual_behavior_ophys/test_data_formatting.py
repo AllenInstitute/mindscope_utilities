@@ -5,7 +5,7 @@ from allensdk.brain_observatory.behavior.behavior_project_cache \
     import VisualBehaviorOphysProjectCache
 
 experiment_id = 951980471
-cache_dir = r'//mindscope_utilities_test/data'
+cache_dir = r'~/mindscope_utilities_test/data'
 cache = VisualBehaviorOphysProjectCache.from_s3_cache(cache_dir)
 ophys_experiment = cache.get_behavior_ophys_experiment(experiment_id)
 
