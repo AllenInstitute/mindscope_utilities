@@ -305,6 +305,9 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     if t_end is None:
         t_end = t_after
 
+    # get original stimulus_presentation_ids, preserve the column for .join() method
+    stimulus_presentations_ids = event_times.index.values
+
     # ensure that t_end is greater than t_start
     assert t_end > t_start, 'must define t_end to be greater than t_start'
 
@@ -383,9 +386,8 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
             lambda s: s.split('event_')[1].split('_')[0]
         ).astype(int)
 
-        stimulus_presentation_ids = event_times.index.values
-        tidy_etr['stimulus_presentation_id'] = tidy_etr['event_number'].apply(
-            lambda row: stimulus_presentation_ids[row])
+        tidy_etr['stimulus_presentations_id'] = tidy_etr['event_number'].apply(
+            lambda row: stimulus_presentations_ids[row])
 
         # add an "event_time" column that contains the event time ()
         tidy_etr['event_time'] = tidy_etr['variable'].map(
