@@ -195,8 +195,8 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         Name of column in data to use as time data
     y : string
         Name of column to use as y data
-    event_times: list or array of floats
-        Times of events of interest.
+    event_times: Panda.Series, numpy array or list of floats
+        Times of events of interest. If pd.Series, the original index and index name will be preserved in the output
         Values in column specified by `y` will be sliced and interpolated
             relative to these times
     t_start : float
@@ -306,7 +306,21 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         t_end = t_after
 
     # get original stimulus_presentation_ids, preserve the column for .join() method
-    stimulus_presentations_ids = event_times.index.values
+    if type(event_times) is pd.Series: # if pd.Series, preserve the name of index column
+        original_index = event_times.index.values
+        if type(event_times.index.name) is str:
+            original_index_column_name = event_times.index.name
+        else: # if index column does not have a name, name is original_index
+            event_times.index.name = 'original_index'
+            original_index_column_name = event_times.index.name
+    elif type(event_times) is list or type(event_times) is np.ndarray: # is list or array, turn into pd.Series
+        event_times = pd.Series(data=event_times,
+                                name='event_times'
+                                )
+        event_times.index.name = 'original_index' # name the index column "original_index"
+        original_index_column_name = event_times.index.name
+        original_index = event_times.index.values
+
 
     # ensure that t_end is greater than t_start
     assert t_end > t_start, 'must define t_end to be greater than t_start'
@@ -386,8 +400,8 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
             lambda s: s.split('event_')[1].split('_')[0]
         ).astype(int)
 
-        tidy_etr['stimulus_presentations_id'] = tidy_etr['event_number'].apply(
-            lambda row: stimulus_presentations_ids[row])
+        tidy_etr[original_index_column_name] = tidy_etr['event_number'].apply(
+            lambda row: original_index[row])
 
         # add an "event_time" column that contains the event time ()
         tidy_etr['event_time'] = tidy_etr['variable'].map(
