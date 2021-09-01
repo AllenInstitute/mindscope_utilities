@@ -383,10 +383,15 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
             lambda s: s.split('event_')[1].split('_')[0]
         ).astype(int)
 
+        stimulus_presentation_ids = event_times.index.values
+        tidy_etr['stimulus_presentation_id'] = tidy_etr['event_number'].apply(
+            lambda row: stimulus_presentation_ids[row])
+
         # add an "event_time" column that contains the event time ()
         tidy_etr['event_time'] = tidy_etr['variable'].map(
             lambda s: s.split('t=')[1]
         ).astype(float)
+
 
         # drop the "variable" column, rename the "value" column
         tidy_etr = (
