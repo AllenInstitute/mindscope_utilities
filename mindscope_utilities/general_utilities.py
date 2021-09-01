@@ -297,7 +297,7 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     assert t_after is None or t_end is None, 'cannot pass both t_after and t_end'  # noqa: E501
 
     if interpolate is False:
-        assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate' # NOQA E501
+        assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate'  # NOQA E501
 
     # assign time values to t_start and t_end
     if t_start is None:
@@ -306,21 +306,22 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         t_end = t_after
 
     # get original stimulus_presentation_ids, preserve the column for .join() method
-    if type(event_times) is pd.Series: # if pd.Series, preserve the name of index column
+    if type(event_times) is pd.Series:  # if pd.Series, preserve the name of index column
         original_index = event_times.index.values
         if type(event_times.index.name) is str:
             original_index_column_name = event_times.index.name
-        else: # if index column does not have a name, name is original_index
+        else:  # if index column does not have a name, name is original_index
             event_times.index.name = 'original_index'
             original_index_column_name = event_times.index.name
-    elif type(event_times) is list or type(event_times) is np.ndarray: # is list or array, turn into pd.Series
+    # is list or array, turn into pd.Series
+    elif type(event_times) is list or type(event_times) is np.ndarray:
         event_times = pd.Series(data=event_times,
                                 name='event_times'
                                 )
-        event_times.index.name = 'original_index' # name the index column "original_index"
+        # name the index column "original_index"
+        event_times.index.name = 'original_index'
         original_index_column_name = event_times.index.name
         original_index = event_times.index.values
-
 
     # ensure that t_end is greater than t_start
     assert t_end > t_start, 'must define t_end to be greater than t_start'
