@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 from mindscope_utilities.visual_behavior_ophys import calculate_response_matrix, calculate_dprime_matrix
 
 
-def plot_response_matrix(stimuli, ax=None, vmin=0, vmax=1, cmap='viridis', cbar_ax=None):
+def plot_response_matrix(stimulus_presentations, ax=None, vmin=0, vmax=1, cmap='viridis', cbar_ax=None):
     '''
     makes a plot of the response matrix given a table of stimuli
 
     Parameters:
     -----------
-    stimuli : pandas.dataframe
+    stimulus_presentations : pandas.dataframe
         From experiment.stimulus_presentations, after annotating as follows:
             annotate_stimuli(experiment, inplace = True)
     ax : matplotlib axis
@@ -35,7 +35,7 @@ def plot_response_matrix(stimuli, ax=None, vmin=0, vmax=1, cmap='viridis', cbar_
         return_fig_ax = True
         fig, ax = plt.subplots()
 
-    response_matrix = calculate_response_matrix(stimuli)
+    response_matrix = calculate_response_matrix(stimulus_presentations)
 
     im = ax.imshow(
         response_matrix,
@@ -58,14 +58,14 @@ def plot_response_matrix(stimuli, ax=None, vmin=0, vmax=1, cmap='viridis', cbar_
         return fig, ax
 
 
-def plot_dprime_matrix(stimuli, ax=None, vmin=0, vmax=1.5, cmap='magma', cbar_ax=None):
+def plot_dprime_matrix(stimulus_presentations, ax=None, vmin=0, vmax=1.5, cmap='magma', cbar_ax=None):
     '''
     makes a plot of the response matrix given a table of stimuli
     Parameters:
     -----------
-    stimuli : pandas.dataframe
+    stimulus_presentations : pandas.dataframe
         From experiment.stimulus_presentations, after annotating as follows:
-            annotate_stimuli(experiment, inplace = True)
+            annotate_stimulus_presentations(experiment, inplace = True)
     ax : matplotlib axis
         axis on which to plot.
         If not passed, will create a figure and axis and return both
@@ -90,7 +90,7 @@ def plot_dprime_matrix(stimuli, ax=None, vmin=0, vmax=1.5, cmap='magma', cbar_ax
         return_fig_ax = True
         fig, ax = plt.subplots()
 
-    dprime_matrix = calculate_dprime_matrix(stimuli)
+    dprime_matrix = calculate_dprime_matrix(stimulus_presentations)
 
     im = ax.imshow(
         dprime_matrix,
