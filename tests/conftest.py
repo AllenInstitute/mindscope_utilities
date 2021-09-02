@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import pytest
+import os
 
 class SimulatedExperiment(object):
     '''
@@ -85,6 +86,7 @@ class SimulatedExperiment(object):
         })
         return events.set_index('cell_specimen_id')
 
+
 @pytest.fixture
 def simulated_experiment_fixture():
    # build a simulated experiment
@@ -103,3 +105,22 @@ def simulated_experiment_fixture():
         filtered_events = [np.cos(4*np.pi*timestamps+ ii*0.5*np.pi) for ii, cell in enumerate(cell_specimen_ids)]
     )
     return simulated_experiment
+
+
+@pytest.fixture
+def visual_behavior_ophys_test_experiment():
+    # get a sample experiment
+    from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache
+    top_level_path = os.path.dirname(__file__)
+    for _ in range(2):
+            top_level_path = os.path.split(top_level_path)[0]
+    cache_dir = os.path.join(top_level_path, '.nwb_cache')
+    if not os.path.exists(cache_dir):
+        os.mkdir(cache_dir)
+
+    cache = VisualBehaviorOphysProjectCache.from_s3_cache(cache_dir=cache_dir)
+
+    ophys_experiment_id = 982343736
+    experiment = cache.get_behavior_ophys_experiment(ophys_experiment_id)
+
+    return experiment

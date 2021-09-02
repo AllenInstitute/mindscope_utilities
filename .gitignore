@@ -140,3 +140,6 @@ dmypy.json
 .idea/mindscope_utilities.iml
 
 .idea/misc.xml
+
+# cached NWB files
+.nwb_cache/
