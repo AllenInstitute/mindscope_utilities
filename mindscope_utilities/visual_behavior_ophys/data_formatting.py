@@ -91,7 +91,7 @@ def get_event_timestamps(
         including 'omissions' or 'change'. Default is 'all', gets all trials  # noqa E501
     onset: str
         optons: 'start_time' - onset of the stimulus, 'stop_time' - offset of the stimulus
-        stimulus_presentation has a multiple timestamps to align data to. Default = 'start_time'.
+        stimulus_presentationshas a multiple timestamps to align data to. Default = 'start_time'.
 
     Returns:
         event_times: array
@@ -163,7 +163,7 @@ def get_stimulus_response_xr(ophys_experiment,
     neural_data = build_tidy_cell_df(ophys_experiment)
 
     # load stimulus_presentations table
-    stimulus_presentation = ophys_experiment.stimulus_presentations
+    stimulus_presentations= ophys_experiment.stimulus_presentations
 
     # get event times and event ids (original order in the stimulus flow)
     event_times, event_ids = get_event_timestamps(
