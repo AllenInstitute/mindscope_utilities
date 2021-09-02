@@ -108,7 +108,7 @@ def test_get_time_array_assertion_errors():
         pass
 
     try:
-        t_array = get_time_array( # NOQA
+        t_array = get_time_array(  # NOQA
             t_start=-1,
             t_end=1,
             include_endpoint=False
@@ -167,8 +167,7 @@ def test_event_triggered_response():
         data=df,
         t='time',
         y='sinusoid',
-        event_times=pd.Series(data=np.arange(100),
-                              index=np.arange(100)),
+        event_times=np.arange(100),
         t_before=1,
         t_after=1,
         output_sampling_rate=100,
