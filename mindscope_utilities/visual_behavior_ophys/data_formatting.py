@@ -185,6 +185,7 @@ def get_stimulus_response_xr(ophys_experiment,
             t_start=time_window[0],
             t_end=time_window[1],
             output_format='wide',
+            interpolate=interpolate,
             **kargs
         )
 
