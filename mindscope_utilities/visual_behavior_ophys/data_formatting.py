@@ -122,9 +122,10 @@ def get_stimulus_response_xr(ophys_experiment,
                              event_type='all',
                              time_window=[-3, 3],
                              interpolate=True,
+                             output_sampling_rate=None,
                              compute_means=True,
                              compute_significance=False,
-                             **kargs):
+                             **kwargs):
     '''
     Parameters:
     ___________
@@ -133,7 +134,7 @@ def get_stimulus_response_xr(ophys_experiment,
         A BehaviorOphysExperiment instance
         See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
     data_type: str
-        neural data type to extract, options are: dff (default), events, filtered_events
+        neural or behavioral data type to extract, options are: dff (default), events, filtered_events, running_speed, pupil_diameter, lick_rate
     event_type: str
         event type to align to, which can be found in columns of ophys_experiment.stimulus_presentations df.
         options are: 'all' (default) - gets all stimulus trials
@@ -144,12 +145,18 @@ def get_stimulus_response_xr(ophys_experiment,
         array of two int or floats indicating the time window on sliced data, default = [-3, 3]
     interpolate: bool
         type of alignment. If True (default) - interpolates neural data to align timestamps
-        with stimulus presentations. If False - shifts data to the nearest timestamps (currently unavailable)
-    compute_menas: bool
+        with stimulus presentations. If False - shifts data to the nearest timestamps
+    output_sampling_rate : float
+        Desired sampling of output.
+        Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
+        If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
+        be used and output_sampling_rate should not be specified.
+    compute_means: bool
+    compute_significance: bool
 
     kwargs: key, value mappings
         Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
-        for interpolation method such as output_sampling_rate and include_endpoint.
+        for interpolation method such as include_endpoint.
 
     Returns:
     __________
@@ -159,9 +166,6 @@ def get_stimulus_response_xr(ophys_experiment,
 
     '''
 
-    # load neural data
-    neural_data = build_tidy_cell_df(ophys_experiment)
-
     # load stimulus_presentations table
     stimulus_presentations = ophys_experiment.stimulus_presentations
 
@@ -169,16 +173,42 @@ def get_stimulus_response_xr(ophys_experiment,
     event_times, event_ids = get_event_timestamps(
         stimulus_presentations, event_type)
 
-    # all cell specimen ids in an ophys_experiment
-    cell_ids = np.unique(neural_data['cell_specimen_id'].values)
+    if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or (data_type == 'lick_rate'):
+        # for behavioral datastreams
+        # set up variables to handle only one timeseries per event instead of multiple cell_specimen_ids
+        unique_id_string = 'trace_id'  # create a column to take the place of 'cell_specimen_id'
+        unique_ids = [0]  # list to iterate over
+    else:
+        unique_id_string = 'cell_specimen_id'
+
+
+    if data_type == 'running_speed':
+        data = ophys_experiment.running_speed.copy() # running_speed attribute is already in tidy format
+        data = data.rename(columns={'speed':'running_speed'}) # rename column so its consistent with data_type
+        data[unique_id_string] = 0  # only one value because only one trace
+
+    elif data_type == 'pupil_diameter':
+        data = ophys_experiment.eye_tracking.copy() # eye tracking attribute is in tidy format
+        data['pupil_diameter'] = np.sqrt(data.pupil_area) / np.pi # convert pupil area to pupil diameter
+        data[unique_id_string] = 0  # only one value because only one trace
+
+    elif data_type == 'lick_rate':
+        data = get_licks_df(ophys_experiment) # create dataframe with info about licks for each stimulus timestamp
+        data[unique_id_string] = 0  # only one value because only one trace
+
+    else:
+        # load neural data
+        data = build_tidy_cell_df(ophys_experiment)
+        # all cell specimen ids in an ophys_experiment
+        unique_ids = np.unique(data['cell_specimen_id'].values)
 
     # collect aligned data
     sliced_dataout = []
 
-    # align neural data using interpolation method
-    for cell_id in tqdm(cell_ids):
+    # align data using interpolation method
+    for unique_id in tqdm(unique_ids):
         etr = mindscope_utilities.event_triggered_response(
-            data=neural_data[neural_data['cell_specimen_id'] == cell_id],
+            data=data[data[unique_id_string] == unique_id],
             t='timestamps',
             y=data_type,
             event_times=event_times,
@@ -186,7 +216,7 @@ def get_stimulus_response_xr(ophys_experiment,
             t_end=time_window[1],
             output_format='wide',
             interpolate=interpolate,
-            **kargs
+            **kwargs
         )
 
         # get timestamps array
@@ -199,12 +229,12 @@ def get_stimulus_response_xr(ophys_experiment,
     sliced_dataout = np.array(sliced_dataout)
     stimulus_response_xr = xr.DataArray(
         data=sliced_dataout,
-        dims=('cell_specimen_id', 'stimulus_presentations_id',
+        dims=(unique_id_string, 'stimulus_presentations_id',
               'eventlocked_timestamps'),
         coords={
             'eventlocked_timestamps': trace_timebase,
             'stimulus_presentations_id': event_ids,
-            'cell_specimen_id': cell_ids
+            unique_id_string: unique_ids
         }
     )
 
@@ -261,9 +291,10 @@ def get_stimulus_response_df(ophys_experiment,
                              event_type='all',
                              time_window=[-3, 3],
                              interpolate=True,
+                             output_sampling_rate=None,
                              compute_means=True,
                              compute_significance=False,
-                             **kargs):
+                             **kwargs):
     '''
     Get stimulus aligned responses from one ophys_experiment.
 
@@ -274,7 +305,7 @@ def get_stimulus_response_df(ophys_experiment,
         A BehaviorOphysExperiment instance
         See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
     data_type: str
-        neural data type to extract, options are: dff (default), events, filtered_events
+        neural or behavioral data type to extract, options are: dff (default), events, filtered_events, running_speed, pupil_diameter, lick_rate
     event_type: str
         event type to align to, which can be found in columns of ophys_experiment.stimulus_presentations df.
         options are: 'all' (default) - gets all stimulus trials
@@ -285,8 +316,13 @@ def get_stimulus_response_df(ophys_experiment,
         array of two int or floats indicating the time window on sliced data, default = [-3, 3]
     interpolate: bool
         type of alignment. If True (default) - interpolates neural data to align timestamps
-        with stimulus presentations. If False - shifts data to the nearest timestamps (currently unavailable)
-    compute_menas: bool
+        with stimulus presentations. If False - shifts data to the nearest timestamps
+    output_sampling_rate : float
+        Desired sampling of output.
+        Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
+        If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
+        be used and output_sampling_rate should not be specified.
+    compute_means: bool
         Default=True, computes mean response and spontaneous (baseline) values. Adds them as additional columns.
     compute_significance: bool
         Currently, not working. A placeholder for future addition of finding significant responses.
@@ -310,30 +346,39 @@ def get_stimulus_response_df(ophys_experiment,
         interpolate=interpolate,
         compute_means=compute_means,
         compute_significance=compute_significance,
-        **kargs)
+        **kwargs)
+
+    # set up identifier columns depending on whether behavioral or neural data is being used
+    if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or (data_type == 'lick_rate'):
+        # set up variables to handle only one timeseries per event instead of multiple cell_specimen_ids
+        unique_id_string = 'trace_id'  # create a column to take the place of 'cell_specimen_id'
+    else:
+        # all cell specimen ids in an ophys_experiment
+        unique_id_string = 'cell_specimen_id'
+
 
     traces = stimulus_response_xr['eventlocked_traces']
     if compute_means is True:
         mean_response = stimulus_response_xr['mean_response']
         mean_baseline = stimulus_response_xr['mean_baseline']
         stacked_response = mean_response.stack(
-            multi_index=('stimulus_presentations_id', 'cell_specimen_id')).transpose()  # noqa E501
+            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
         stacked_baseline = mean_baseline.stack(
-            multi_index=('stimulus_presentations_id', 'cell_specimen_id')).transpose()  # noqa E501
+            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
 
     if compute_significance is True:
         p_vals_omission = stimulus_response_xr['p_value_omission']
         p_vals_stimulus = stimulus_response_xr['p_value_stimulus']
         p_vals_gray_screen = stimulus_response_xr['p_value_gray_screen']
         stacked_pval_omission = p_vals_omission.stack(
-            multi_index=('stimulus_presentations_id', 'cell_specimen_id')).transpose()  # noqa E501
+            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
         stacked_pval_stimulus = p_vals_stimulus.stack(
-            multi_index=('stimulus_presentations_id', 'cell_specimen_id')).transpose()  # noqa E501
+            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
         stacked_pval_gray_screen = p_vals_gray_screen.stack(
-            multi_index=('stimulus_presentations_id', 'cell_specimen_id')).transpose()  # noqa E501
+            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
 
     stacked_traces = traces.stack(multi_index=(
-        'stimulus_presentations_id', 'cell_specimen_id')).transpose()
+        'stimulus_presentations_id', unique_id_string)).transpose()
     num_repeats = len(stacked_traces)
     trace_timestamps = np.repeat(
         stacked_traces.coords['eventlocked_timestamps'].data[np.newaxis, :],
@@ -342,14 +387,14 @@ def get_stimulus_response_df(ophys_experiment,
     if compute_means is False and compute_significance is False:
         stimulus_response_df = pd.DataFrame({
             'stimulus_presentations_id': stacked_traces.coords['stimulus_presentations_id'],  # noqa E501
-            'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
+            unique_id_string: stacked_traces.coords[unique_id_string],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
         })
     elif compute_means is True and compute_significance is False:
         stimulus_response_df = pd.DataFrame({
             'stimulus_presentations_id': stacked_traces.coords['stimulus_presentations_id'],  # noqa E501
-            'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
+            unique_id_string: stacked_traces.coords[unique_id_string],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
             'mean_response': stacked_response.data,
@@ -368,7 +413,7 @@ def get_stimulus_response_df(ophys_experiment,
     else:
         stimulus_response_df = pd.DataFrame({
             'stimulus_presentations_id': stacked_traces.coords['stimulus_presentations_id'],  # noqa E501
-            'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
+            unique_id_string: stacked_traces.coords[unique_id_string],
             'trace': list(stacked_traces.data),
             'trace_timestamps': list(trace_timestamps),
             'p_value_gray_screen': stacked_pval_gray_screen,
@@ -840,3 +885,32 @@ def calculate_dprime_matrix(stimuli, sort_by_column=True, engaged_only=True):
                 d_prime_matrix.loc[row][col] = np.nan
 
     return d_prime_matrix
+
+
+def get_licks_df(ophys_experiment):
+    '''
+    Creates a dataframe containing columns for 'timestamps', 'licks', where values are from
+    a binary array of the length of stimulus timestamps where frames with no lick are 0 and frames with a lick are 1,
+    and a column called 'lick_rate' with values of 'licks' averaged over a 6 frame window to get licks per 100ms,
+    Can be used to plot event triggered average lick rate
+    Parameters:
+    -----------
+    ophys_experiment: obj
+        AllenSDK BehaviorOphysExperiment object
+        A BehaviorOphysExperiment instance
+        See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
+
+    Returns:
+    --------
+    Pandas.DataFrame with columns 'timestamps', 'licks', and 'lick_rate' in units of licks / 100ms
+
+    '''
+    timestamps = ophys_experiment.stimulus_timestamps.copy()
+    licks = ophys_experiment.licks.copy()
+    lick_array = np.zeros(timestamps.shape)
+    lick_array[licks.frame.values] = 1
+    licks_df = pd.DataFrame(data=timestamps, columns=['timestamps'])
+    licks_df['licks'] = lick_array
+    licks_df['lick_rate'] = licks_df['licks'].rolling(window=6, min_periods=1, win_type='triang').mean()
+
+    return licks_df
