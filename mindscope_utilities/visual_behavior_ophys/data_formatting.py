@@ -121,6 +121,7 @@ def get_stimulus_response_xr(ophys_experiment,
                              data_type='dff',
                              event_type='all',
                              time_window=[-3, 3],
+                             response_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
                              compute_means=True,
@@ -143,6 +144,8 @@ def get_stimulus_response_xr(ophys_experiment,
                      'changes' - get only trials of image changes
     time_window: array
         array of two int or floats indicating the time window on sliced data, default = [-3, 3]
+    response_window_duration: float
+        time period, in seconds, relative to stimulus onset to compute the mean and baseline response
     interpolate: bool
         type of alignment. If True (default) - interpolates neural data to align timestamps
         with stimulus presentations. If False - shifts data to the nearest timestamps
@@ -180,7 +183,6 @@ def get_stimulus_response_xr(ophys_experiment,
         unique_ids = [0]  # list to iterate over
     else:
         unique_id_string = 'cell_specimen_id'
-
 
     if data_type == 'running_speed':
         data = ophys_experiment.running_speed.copy() # running_speed attribute is already in tidy format
@@ -240,14 +242,14 @@ def get_stimulus_response_xr(ophys_experiment,
 
     if compute_means is True:
         stimulus_response_xr = compute_means_xr(
-            stimulus_response_xr, time_window=time_window)
+            stimulus_response_xr, response_window_duration=response_window_duration)
 
     return stimulus_response_xr
 
 
-def compute_means_xr(stimulus_response_xr, time_window):
+def compute_means_xr(stimulus_response_xr, response_window_duration=0.5):
     '''
-    Computes means of responses and spontaneous (baseline) traces.
+    Computes means of traces for stimulus response and pre-stimulus baseline.
     Response by default starts at 0, while baseline
     trace by default ends at 0.
 
@@ -257,8 +259,8 @@ def compute_means_xr(stimulus_response_xr, time_window):
         stimulus_response_xr from get_stimulus_response_xr
         with three main dimentions: cell_specimen_id,
         trail_id, and eventlocked_timestamps
-    time_window: array
-        time window in seconds, used for alignment arount events
+    response_window_duration:
+        duration in seconds relative to stimulus onset to compute the mean and baseline responses
         in get_stimulus_response_xr
 
     Returns:
@@ -266,8 +268,8 @@ def compute_means_xr(stimulus_response_xr, time_window):
         stimulus_response_xr with additional
         dimentions: mean_response and mean_baseline
     '''
-    response_range = [0, time_window[1]]
-    baseline_range = [time_window[0], 0]
+    response_range = [0, response_window_duration]
+    baseline_range = [-response_window_duration, 0]
 
     mean_response = stimulus_response_xr.loc[
         {'eventlocked_timestamps': slice(*response_range)}
@@ -290,6 +292,7 @@ def get_stimulus_response_df(ophys_experiment,
                              data_type='dff',
                              event_type='all',
                              time_window=[-3, 3],
+                             response_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
                              compute_means=True,
@@ -314,6 +317,8 @@ def get_stimulus_response_df(ophys_experiment,
                      'changes' - get only trials of image changes
     time_window: array
         array of two int or floats indicating the time window on sliced data, default = [-3, 3]
+    response_window_duration: float
+        time period, in seconds, relative to stimulus onset to compute the mean and baseline response
     interpolate: bool
         type of alignment. If True (default) - interpolates neural data to align timestamps
         with stimulus presentations. If False - shifts data to the nearest timestamps
@@ -343,6 +348,7 @@ def get_stimulus_response_df(ophys_experiment,
         data_type=data_type,
         event_type=event_type,
         time_window=time_window,
+        response_window_duration=response_window_duration,
         interpolate=interpolate,
         compute_means=compute_means,
         compute_significance=compute_significance,
