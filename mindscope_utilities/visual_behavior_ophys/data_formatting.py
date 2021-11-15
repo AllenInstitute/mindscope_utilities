@@ -218,6 +218,7 @@ def get_stimulus_response_xr(ophys_experiment,
             t_end=time_window[1],
             output_format='wide',
             interpolate=interpolate,
+            output_sampling_rate=output_sampling_rate
             **kwargs
         )
 
@@ -350,6 +351,7 @@ def get_stimulus_response_df(ophys_experiment,
         time_window=time_window,
         response_window_duration=response_window_duration,
         interpolate=interpolate,
+        output_sampling_rate=output_sampling_rate,
         compute_means=compute_means,
         compute_significance=compute_significance,
         **kwargs)
