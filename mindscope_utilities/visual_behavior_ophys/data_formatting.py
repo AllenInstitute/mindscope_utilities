@@ -204,6 +204,10 @@ def get_stimulus_response_xr(ophys_experiment,
         # all cell specimen ids in an ophys_experiment
         unique_ids = np.unique(data['cell_specimen_id'].values)
 
+    # get native sampling rate if one is not provided
+    if output_sampling_rate is None:
+        output_sampling_rate = 1 / np.diff(data['timestamps']).mean()
+
     # collect aligned data
     sliced_dataout = []
 
@@ -218,7 +222,7 @@ def get_stimulus_response_xr(ophys_experiment,
             t_end=time_window[1],
             output_format='wide',
             interpolate=interpolate,
-            output_sampling_rate=output_sampling_rate
+            output_sampling_rate=output_sampling_rate,
             **kwargs
         )
 

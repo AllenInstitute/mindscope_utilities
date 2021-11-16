@@ -172,7 +172,8 @@ def index_of_nearest_value(data_timestamps, event_timestamps):
     return event_indices
 
 
-def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None, output_sampling_rate=None, include_endpoint=True, output_format='tidy', interpolate=True):  # NOQA E501
+def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None,
+                             output_sampling_rate=None, include_endpoint=True, output_format='tidy', interpolate=True):  # NOQA E501
     '''
     Slices a timeseries relative to a given set of event times
     to build an event-triggered response.
