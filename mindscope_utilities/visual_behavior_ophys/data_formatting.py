@@ -836,7 +836,7 @@ def add_trials_data_to_stimulus_presentations_table(stimulus_presentations, tria
                     'hit', 'miss', 'false_alarm', 'correct_reject',
                     'response_time', 'response_latency', 'reward_time', 'reward_volume', ]]
     # merge trials columns into stimulus_presentations
-    stimulus_presentations = stimulus_presentations.reset_index().merge(trials, on='trials_id')
+    stimulus_presentations = stimulus_presentations.reset_index().merge(trials, on='trials_id', how='left')
     stimulus_presentations = stimulus_presentations.set_index('stimulus_presentations_id')
     return stimulus_presentations
 
