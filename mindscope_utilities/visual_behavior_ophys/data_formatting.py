@@ -579,12 +579,7 @@ def add_rewards_to_stimulus_presentations(
     return stimulus_presentations
 
 
-def add_licks_to_stimulus_presentations(
-    stimulus_presentations,
-    licks,
-    time_window=[
-        0,
-        3]):
+def add_licks_to_stimulus_presentations(stimulus_presentations, licks, time_window=[0, 0.75]):
     '''
     Append a column to stimulus_presentations which
     contains the timestamps of licks that occur
@@ -639,10 +634,7 @@ def get_trace_average(trace, timestamps, start_time, stop_time):
     return values_this_range.mean()
 
 
-def add_mean_running_speed_to_stimulus_presentations(
-        stimulus_presentations,
-        running_speed,
-        time_window=[-3, 3]):
+def add_mean_running_speed_to_stimulus_presentations(stimulus_presentations, running_speed, time_window=[0, 0.75]):
     '''
     Append a column to stimulus_presentations which contains
     the mean running speed in a range relative to
@@ -691,7 +683,7 @@ def add_mean_running_speed_to_stimulus_presentations(
     return stimulus_presentations
 
 
-def add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_tracking, column_to_use='pupil_area', time_window=[-0.5, 0.5]):
+def add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_tracking, column_to_use='pupil_area', time_window=[0, 0.75]):
     '''
     Append a column to stimulus_presentations which contains
     the mean pupil area, diameter, or radius in a range relative to
@@ -766,7 +758,8 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
 
     last_time = 0
     reward_rate_by_frame = []
-    trials['reward_rate'] = calculate_reward_rate(trials['response_latency'].values,
+    if 'reward_rate' not in trials:
+        trials['reward_rate'] = calculate_reward_rate(trials['response_latency'].values,
                                                   trials['start_time'], window=.5)
 
     trials = trials[trials['aborted'] == False]  # NOQA
@@ -785,7 +778,145 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
     return stimulus_presentations
 
 
-def annotate_stimuli(dataset, inplace=False):
+
+def add_epochs_to_stimulus_presentations(stimulus_presentations, time_column='start_time', epoch_duration_mins=10):
+    """
+    Add column called 'epoch' with values as an index for the epoch within a session, for a given epoch duration.
+
+    :param stimulus_presentations: dataframe with a column indicating event start times
+    :param time_column: name of column in dataframe indicating event times
+    :param epoch_duration_mins: desired epoch length in minutes
+    :return: input dataframe with epoch column added
+    """
+    start_time = stimulus_presentations[time_column].values[0]
+    stop_time = stimulus_presentations[time_column].values[-1]
+    epoch_times = np.arange(start_time, stop_time, epoch_duration_mins * 60)
+    stimulus_presentations['epoch'] = None
+    for i, time in enumerate(epoch_times):
+        if i < len(epoch_times) - 1:
+            indices = stimulus_presentations[(stimulus_presentations[time_column] >= epoch_times[i]) &
+                                             (stimulus_presentations[time_column] < epoch_times[i + 1])].index.values
+        else:
+            indices = stimulus_presentations[(stimulus_presentations[time_column] >= epoch_times[i])].index.values
+        stimulus_presentations.at[indices, 'epoch'] = i
+    return stimulus_presentations
+
+
+def add_trials_id_to_stimulus_presentations(stimulus_presentations, trials):
+    """
+    Add trials_id to stimulus presentations by finding the closest change time to each stimulus start time
+    If there is no corresponding change time, the trials_id is NaN
+    :param: stimulus_presentations: stimulus_presentations attribute of BehaviorOphysExperiment object, must have 'start_time'
+    :param trials: trials attribute of BehaviorOphysExperiment object, must have 'change_time'
+    """
+    # for each stimulus_presentation, find the trials_id that is closest to the start time
+    # add to a new column called 'trials_id'
+    for idx, stimulus_presentation in stimulus_presentations.iterrows():
+        start_time = stimulus_presentation['start_time']
+        query_string = 'change_time > @start_time - 1 and change_time < @start_time + 1'
+        trials_id = (np.abs(start_time - trials.query(query_string)['change_time']))
+        if len(trials_id) == 1:
+            trials_id = trials_id.idxmin()
+        else:
+            trials_id = np.nan
+        stimulus_presentations.loc[idx, 'trials_id'] = trials_id
+    return stimulus_presentations
+
+
+def add_trials_data_to_stimulus_presentations_table(stimulus_presentations, trials):
+    """
+    Add trials_id to stimulus presentations table then join relevant columns of trials with stimulus_presentations
+    :param: stimulus_presentations: stimulus_presentations attribute of BehaviorOphysExperiment object, must have 'start_time'
+    :param trials: trials attribute of BehaviorOphysExperiment object, must have 'change_time'
+    """
+    # add trials_id and merge to get trial type information
+    stimulus_presentations = add_trials_id_to_stimulus_presentations(stimulus_presentations, trials)
+    # only keep certain columns
+    trials = trials[['change_time', 'go', 'catch', 'aborted', 'auto_rewarded',
+                    'hit', 'miss', 'false_alarm', 'correct_reject',
+                    'response_time', 'response_latency', 'reward_time', 'reward_volume', ]]
+    # merge trials columns into stimulus_presentations
+    stimulus_presentations = stimulus_presentations.reset_index().merge(trials, on='trials_id')
+    stimulus_presentations = stimulus_presentations.set_index('stimulus_presentations_id')
+    return stimulus_presentations
+
+
+
+def time_from_last(timestamps, event_times, side='right'):
+    '''
+    For each timestamp, returns the time from the most recent other time (in event_times)
+
+    Args:
+        timestamps (np.array): array of timestamps for which the 'time from last event' will be returned
+        event_times (np.array): event timestamps
+    Returns
+        time_from_last_event (np.array): the time from the last event for each timestamp
+
+    '''
+    last_event_index = np.searchsorted(a=event_times, v=timestamps, side=side) - 1
+    time_from_last_event = timestamps - event_times[last_event_index]
+    # flashes that happened before the other thing happened should return nan
+    time_from_last_event[last_event_index == -1] = np.nan
+
+    return time_from_last_event
+
+
+def add_time_from_last_change_to_stimulus_presentations(stimulus_presentations):
+    '''
+        Adds a column to stimulus_presentations called 'time_from_last_change', which is the time, in seconds since the last image change
+
+        ARGS: SDK session object
+        MODIFIES: session.stimulus_presentations
+        RETURNS: stimulus_presentations
+    '''
+    stimulus_times = stimulus_presentations["start_time"].values
+    change_times = stimulus_presentations.query('is_change')['start_time'].values
+    time_from_last_change = time_from_last(stimulus_times, change_times)
+    stimulus_presentations["time_from_last_change"] = time_from_last_change
+
+    return stimulus_presentations
+
+
+
+def get_annotated_stimulus_presentations(ophys_experiment):
+    """
+    Adds several useful columns to the stimulus_presentations table, including the mean running speed and pupil diameter for each stimulus,
+    the times of licks for each stimulus, the rolling reward rate, an identifier for 10 minute epochs within a session,
+    whether or not a stimulus was a pre-change or pre or post omission, and whether change stimuli were hits or misses
+    :param ophys_experiment: obj
+        AllenSDK BehaviorOphysExperiment object
+        A BehaviorOphysExperiment instance
+        See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
+    :return: stimulus_presentations attribute of BehaviorOphysExperiment, with additional columns added
+    """
+    stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
+    stimulus_presentations = add_licks_to_stimulus_presentations(stimulus_presentations, ophys_experiment.licks,
+                                                                  time_window=[0, 0.75])
+    stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations,
+                                                                               ophys_experiment.running_speed,
+                                                                               time_window=[0, 0.75])
+    stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations,
+                                                                       ophys_experiment.eye_tracking,
+                                                                       column_to_use='pupil_diameter',
+                                                                       time_window=[0, 0.75])
+    stimulus_presentations = add_reward_rate_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
+    stimulus_presentations = add_epochs_to_stimulus_presentations(stimulus_presentations,
+                                                                   time_column='start_time',
+                                                                   epoch_duration_mins=10)
+    stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, ophys_experiment.trials)
+    # add time from last change
+    stimulus_presentations = add_time_from_last_change_to_stimulus_presentations(stimulus_presentations)
+    # add pre-change, pre-omission, lick on next flash etc
+    stimulus_presentations['pre_change'] = stimulus_presentations['is_change'].shift(-1)
+    stimulus_presentations['pre_omitted'] = stimulus_presentations['omitted'].shift(-1)
+    stimulus_presentations['licked'] = [True if len(licks) > 0 else False for licks in stimulus_presentations.licks.values]
+    stimulus_presentations['lick_on_next_flash'] = stimulus_presentations['licked'].shift(-1)
+
+    return stimulus_presentations
+
+
+
+def annotate_stimulus_presentations_with_behavioral_response_info(dataset, inplace=False):
     '''
     adds the following columns to the stimulus_presentations table, facilitating calculation
     of behavior performance based entirely on the stimulus_presentations table:
@@ -917,7 +1048,7 @@ def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, eng
     -----------
     stimuli: Pandas.DataFrame
         From experiment.stimulus_presentations, after annotating as follows:
-            annotate_stimuli(experiment, inplace = True)
+            annotate_stimulus_presentations_with_behavioral_response_info(experiment, inplace = True)
     aggfunc: function
         function to apply to calculation. Default = np.mean
         other options include np.size (to get counts) or np.median
@@ -968,7 +1099,7 @@ def calculate_dprime_matrix(stimuli, sort_by_column=True, engaged_only=True):
     -----------
     stimuli: Pandas.DataFrame
         From experiment.stimulus_presentations, after annotating as follows:
-            annotate_stimuli(experiment, inplace = True)
+            annotate_stimulus_presentations_with_behavioral_response_info(experiment, inplace = True)
     sort_by_column: Boolean
         if True (default), sorts outputs by column means
     engaged_only: Boolean
