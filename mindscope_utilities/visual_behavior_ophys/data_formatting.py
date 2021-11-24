@@ -187,7 +187,9 @@ def get_stimulus_response_xr(ophys_experiment,
         data[unique_id_string] = 0  # only one value because only one trace
     elif 'pupil' in data_type:
         data = ophys_experiment.eye_tracking.copy() # eye tracking attribute is in tidy format
-        data['pupil_diameter'] = np.sqrt(data.pupil_area) / np.pi # convert pupil area to pupil diameter
+        data = get_pupil_data(data, interpolate_likely_blinks=True, normalize_to_gray_screen=True, zscore=False,
+                                interpolate_to_ophys=False, stimulus_presentations=ophys_experiment.stimulus_presentations, ophys_timestamps=None)
+        # normalize to gray screen baseline
         data[unique_id_string] = 0  # only one value because only one trace
     elif 'lick' in data_type:
         data = get_licks_df(ophys_experiment) # create dataframe with info about licks for each stimulus timestamp
@@ -689,23 +691,25 @@ def add_mean_running_speed_to_stimulus_presentations(
     return stimulus_presentations
 
 
-def add_mean_pupil_area_to_stimulus_presentations(stimulus_presentations, eye_tracking, time_window=[-3, 3]):
+def add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_tracking, column_to_use='pupil_area', time_window=[-0.5, 0.5]):
     '''
     Append a column to stimulus_presentations which contains
-    the mean pupil area in a range relative to
+    the mean pupil area, diameter, or radius in a range relative to
     the stimulus start time.
 
     Args:
         stimulus_presentations (pd.DataFrame): dataframe of stimulus presentations.  # noqa E501
             Must contain: 'start_time'
         eye_tracking (pd.DataFrame): dataframe of eye tracking data.
-            Must contain: 'pupil_area', 'timestamps'
+            Must contain: timestamps', 'pupil_area', 'pupil_width', 'likely_blinks'
         time_window (list with 2 elements): start and end of the range
             relative to the start of each stimulus to average the pupil area.
+        column_to_use: column in eyetracking table to use to get mean, options: 'pupil_area', 'pupil_width', 'pupil_radius', 'pupil_diameter'
+                        if 'pupil_diameter' or 'pupil_radius' are provided, they will be calculated from 'pupil_area'
+                        if 'pupil_width' is provided, the column 'pupil_width' will be directly used from eye_tracking table
     Returns:
-        stimulus_presentations table with new column "mean_pupil_area" with the
-        mean pupil arae within the specified window
-        following each stimulus presentation.
+        stimulus_presentations table with new column "mean_pupil_"+column_to_use with the
+        mean pupil value within the specified window following each stimulus presentation.
 
     Example:
         # get visual behavior cache
@@ -721,20 +725,31 @@ def add_mean_pupil_area_to_stimulus_presentations(stimulus_presentations, eye_tr
         eye_tracking = ophys_experiment.eye_tracking.copy()
 
         # add pupil area to stim presentations
-        stimulus_presentations = add_mean_pupil_area_to_stimulus_presentations(stimulus_presentations, eye_tracking)  # noqa E501
+        stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_tracking, column_to_use='pupil_area')  # noqa E501
     '''
-    stim_pupil_area = stimulus_presentations.apply(
+
+    # set all timepoints that are likely blinks to NaN for all eye_tracking columns
+    eye_tracking.loc[eye_tracking['likely_blink'], :] = np.nan
+    # compute pupil_diameter or radius from pupil_area
+    if column_to_use == 'pupil_diameter':
+        eye_tracking['pupil_diameter'] = np.sqrt(eye_tracking.pupil_area) / np.pi  # convert pupil area to pupil diameter
+    elif column_to_use == 'pupil_radius':
+        eye_tracking['pupil_radius'] = np.sqrt(eye_tracking['pupil_area'] * (1 / np.pi)) # convert pupil area to pupil radius
+
+
+    eye_tracking_timeseries = eye_tracking[column_to_use].values
+    mean_pupil_around_stimulus = stimulus_presentations.apply(
         lambda row: get_trace_average(
-            eye_tracking['pupil_area'].values,
+            eye_tracking_timeseries,
             eye_tracking['timestamps'].values,
             row["start_time"] + time_window[0],
             row["start_time"] + time_window[1],
         ), axis=1,)
-    stimulus_presentations["mean_pupil_area"] = stim_pupil_area
+    stimulus_presentations["mean_"+column_to_use] = mean_pupil_around_stimulus
     return stimulus_presentations
 
 
-def add_reward_rate_to_stimulus_presentations(trials, stimulus_presentations):
+def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
     '''
     Parameters:
     ____________
@@ -1016,3 +1031,66 @@ def get_licks_df(ophys_experiment):
     licks_df['lick_rate'] = licks_df['licks'].rolling(window=6, min_periods=1, win_type='triang').mean()
 
     return licks_df
+
+
+def get_pupil_data(eye_tracking, interpolate_likely_blinks=False, normalize_to_gray_screen=False, zscore=False,
+                   interpolate_to_ophys=False, ophys_timestamps=None, stimulus_presentations=None):
+    """
+    removes 'likely_blinks' from all columns in eye_tracking and converts pupil_area to pupil_diameter and pupil_radius
+    interpolates over NaNs resulting from removing likely_blinks if interpolate = true
+    :param eye_tracking: eye_tracking attribute of AllenSDK BehaviorOphysExperiment object
+    :param column_to_use: 'pupil_area', 'pupil_width', 'pupil_diameter', or 'pupil_radius'
+                            'pupil_area' and 'pupil_width' are existing columns of the eye_tracking table
+                            'pupil_diameter' and 'pupil_radius' are computed from 'pupil_area' column
+    :param interpolate: Boolean, whether or not to interpolate points where likely_blinks occured
+
+    :return:
+    """
+    import scipy
+
+    # set index to timestamps so they dont get overwritten by subsequent operations
+    eye_tracking = eye_tracking.set_index('timestamps')
+
+    # compute pupil_diameter and pupil_radius from pupil_area
+    eye_tracking['pupil_diameter'] = np.sqrt(eye_tracking.pupil_area) / np.pi  # convert pupil area to pupil diameter
+    eye_tracking['pupil_radius'] = np.sqrt(eye_tracking['pupil_area'] * (1 / np.pi))  # convert pupil area to pupil radius
+
+    # set all timepoints that are likely blinks to NaN for all eye_tracking columns
+    eye_tracking.loc[eye_tracking['likely_blink'], :] = np.nan
+
+    # add timestamps column back in
+    eye_tracking['timestamps'] = eye_tracking.index.values
+
+    # interpolate likely blinks
+    if interpolate_likely_blinks:
+        eye_tracking = eye_tracking.interpolate()
+
+    # divide all columns by average of gray screen period prior to behavior session
+    if normalize_to_gray_screen:
+        assert stimulus_presentations is not None, 'must provide stimulus_presentations if normalize_to_gray_screen is True'
+        spontaneous_frames = get_spontaneous_frames(stimulus_presentations,
+                                                             eye_tracking.timestamps.values,
+                                                             gray_screen_period_to_use='before')
+        for column in eye_tracking.keys():
+            if (column != 'timestamps') and (column!='likely_blinks'):
+                gray_screen_mean_value = np.nanmean(eye_tracking[column].values[spontaneous_frames])
+                eye_tracking[column] = eye_tracking[column] / gray_screen_mean_value
+    # z-score pupil data
+    if zscore:
+        for column in eye_tracking.keys():
+            if column != 'timestamps':
+                eye_tracking[column] = scipy.stats.zscore(eye_tracking[column], nan_policy='omit')
+
+    # interpolate to ophys timestamps
+    if interpolate_to_ophys:
+        assert ophys_timestamps is not None, 'must provide ophys_timestamps if interpolate_to_ophys is True'
+        eye_tracking_ophys_time = pd.DataFrame({'timestamps': ophys_timestamps})
+        for column in eye_tracking.keys():
+            if column != 'timestamps':
+                f = scipy.interpolate.interp1d(eye_tracking['timestamps'], eye_tracking[column], bounds_error=False)
+                eye_tracking_ophys_time[column] = f(eye_tracking_ophys_time['timestamps'])
+                eye_tracking_ophys_time[column].fillna(method='ffill', inplace=True)
+        eye_tracking = eye_tracking_ophys_time
+
+    return eye_tracking
+
