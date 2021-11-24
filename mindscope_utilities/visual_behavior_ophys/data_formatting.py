@@ -124,8 +124,6 @@ def get_stimulus_response_xr(ophys_experiment,
                              response_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
-                             compute_means=True,
-                             compute_significance=False,
                              **kwargs):
     '''
     Parameters:
@@ -154,8 +152,7 @@ def get_stimulus_response_xr(ophys_experiment,
         Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
         If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
         be used and output_sampling_rate should not be specified.
-    compute_means: bool
-    compute_significance: bool
+
 
     kwargs: key, value mappings
         Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
@@ -176,7 +173,7 @@ def get_stimulus_response_xr(ophys_experiment,
     event_times, event_ids = get_event_timestamps(
         stimulus_presentations, event_type)
 
-    if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or (data_type == 'lick_rate'):
+    if ('running' in data_type) or ('pupil' in data_type) or ('lick' in data_type):
         # for behavioral datastreams
         # set up variables to handle only one timeseries per event instead of multiple cell_specimen_ids
         unique_id_string = 'trace_id'  # create a column to take the place of 'cell_specimen_id'
@@ -184,20 +181,17 @@ def get_stimulus_response_xr(ophys_experiment,
     else:
         unique_id_string = 'cell_specimen_id'
 
-    if data_type == 'running_speed':
+    if 'running' in data_type:
         data = ophys_experiment.running_speed.copy() # running_speed attribute is already in tidy format
         data = data.rename(columns={'speed':'running_speed'}) # rename column so its consistent with data_type
         data[unique_id_string] = 0  # only one value because only one trace
-
-    elif data_type == 'pupil_diameter':
+    elif 'pupil' in data_type:
         data = ophys_experiment.eye_tracking.copy() # eye tracking attribute is in tidy format
         data['pupil_diameter'] = np.sqrt(data.pupil_area) / np.pi # convert pupil area to pupil diameter
         data[unique_id_string] = 0  # only one value because only one trace
-
-    elif data_type == 'lick_rate':
+    elif 'lick' in data_type:
         data = get_licks_df(ophys_experiment) # create dataframe with info about licks for each stimulus timestamp
         data[unique_id_string] = 0  # only one value because only one trace
-
     else:
         # load neural data
         data = build_tidy_cell_df(ophys_experiment)
@@ -245,9 +239,39 @@ def get_stimulus_response_xr(ophys_experiment,
         }
     )
 
-    if compute_means is True:
-        stimulus_response_xr = compute_means_xr(
-            stimulus_response_xr, response_window_duration=response_window_duration)
+
+    # get traces for significance computation
+    if 'events' in data_type:
+        traces_array = np.vstack(ophys_experiment.events[data_type].values)
+    elif data_type == 'dff':
+        traces_array = np.vstack(ophys_experiment.dff_traces['dff'].values)
+    else:
+        traces_array = data[data_type].values
+
+    # compute mean activity following stimulus onset and during pre-stimulus baseline
+    stimulus_response_xr = compute_means_xr(stimulus_response_xr, response_window_duration=response_window_duration)
+
+    # get mean response for each trial
+    mean_responses = stimulus_response_xr.mean_response.data.T  # input needs to be array of nConditions, nCells
+
+    # compute significance of each trial, returns array of nConditions, nCells
+    p_value_gray_screen = get_p_value_from_shuffled_spontaneous(mean_responses,
+                                                                ophys_experiment.stimulus_presentations,
+                                                                ophys_experiment.ophys_timestamps,
+                                                                traces_array,
+                                                                response_window_duration*output_sampling_rate,
+                                                                output_sampling_rate)
+
+    # put p_value_gray_screen back into same coordinates as xarray and make it an xarray data array
+    p_value_gray_screen = xr.DataArray(data=p_value_gray_screen.T, coords=stimulus_response_xr.mean_response.coords)
+
+    # create new xarray with means and p-values
+    stimulus_response_xr = xr.Dataset({
+        'eventlocked_traces': stimulus_response_xr.eventlocked_traces,
+        'mean_response': stimulus_response_xr.mean_response,
+        'mean_baseline': stimulus_response_xr.mean_baseline,
+        'p_value_gray_screen': p_value_gray_screen
+    })
 
     return stimulus_response_xr
 
@@ -293,6 +317,106 @@ def compute_means_xr(stimulus_response_xr, response_window_duration=0.5):
     return stimulus_response_xr
 
 
+def get_spontaneous_frames(stimulus_presentations, ophys_timestamps, gray_screen_period_to_use='before'):
+    '''
+        Returns a list of the frames that occur during the before and after spontaneous windows. This is copied from VBA. Does not use the full spontaneous period because that is what VBA did. It only uses 4 minutes of the before and after spontaneous period.
+
+    Args:
+        stimulus_presentations_df (pandas.DataFrame): table of stimulus presentations, including start_time and stop_time
+        ophys_timestamps (np.array): timestamps of each ophys frame
+        gray_screen_period_to_use (str): 'before', 'after', or 'both'
+                                        whether to use the gray screen period before the session, after the session, or across both
+    Returns:
+        spontaneous_inds (np.array): indices of ophys frames during the gray screen period before or after the session, or both
+    '''
+    # exclude the very first minute of the session because the monitor has just turned on and can cause artifacts
+    # spont_duration_frames = 4 * 60 * 60  # 4 mins * * 60s/min * 60Hz
+    spont_duration = 4 * 60  # 4mins * 60sec
+
+    # for spontaneous at beginning of session, get 4 minutes of gray screen values prior to first stimulus
+    behavior_start_time = stimulus_presentations.iloc[0].start_time
+    spontaneous_start_time_pre = behavior_start_time - spont_duration
+    spontaneous_end_time_pre = behavior_start_time
+    spontaneous_start_frame_pre = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_start_time_pre)
+    spontaneous_end_frame_pre = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_end_time_pre)
+    spontaneous_frames_pre = np.arange(spontaneous_start_frame_pre, spontaneous_end_frame_pre, 1)
+
+    # for spontaneous epoch at end of session, get 4 minutes of gray screen values after the last stimulus
+    behavior_end_time = stimulus_presentations.iloc[-1].start_time
+    spontaneous_start_time_post = behavior_end_time + 0.75
+    spontaneous_end_time_post = spontaneous_start_time_post + spont_duration
+    spontaneous_start_frame_post = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_start_time_post)
+    spontaneous_end_frame_post = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_end_time_post)
+    spontaneous_frames_post = np.arange(spontaneous_start_frame_post, spontaneous_end_frame_post, 1)
+
+    if gray_screen_period_to_use == 'before':
+        spontaneous_frames = spontaneous_frames_pre
+    elif gray_screen_period_to_use == 'after':
+        spontaneous_frames = spontaneous_frames_post
+    elif gray_screen_period_to_use == 'both':
+        spontaneous_frames = np.concatenate([spontaneous_frames_pre, spontaneous_frames_post])
+    return spontaneous_frames
+
+
+
+def get_p_value_from_shuffled_spontaneous(mean_responses,
+                                      stimulus_presentations,
+                                      ophys_timestamps,
+                                      traces_array,
+                                      response_window_duration,
+                                      ophys_frame_rate=None,
+                                      number_of_shuffles=10000):
+    '''
+    Args:
+        mean_responses (array): Mean response values, shape (nConditions, nCells)
+        stimulus_presentations_df (pandas.DataFrame): Table of stimulus presentations, including start_time and stop_time
+        ophys_timestamps (np.array): Timestamps of each ophys frame
+        traces_arr (np.array): trace values, shape (nSamples, nCells)
+        response_window_duration (int): Number of frames averaged to produce mean response values
+        number_of_shuffles (int): Number of shuffles of spontaneous activity used to produce the p-value
+    Returns:
+        p_values (array): p-value for each response mean, shape (nConditions, nCells)
+    '''
+
+    from mindscope_utilities.general_utilities import eventlocked_traces
+
+    spontaneous_frames = get_spontaneous_frames(stimulus_presentations, ophys_timestamps, gray_screen_period_to_use='before')
+    shuffled_spont_inds = np.random.choice(spontaneous_frames, number_of_shuffles)
+
+    if ophys_frame_rate is None:
+        ophys_frame_rate = 1 / np.diff(ophys_timestamps).mean()
+
+    trace_len = np.round(response_window_duration * ophys_frame_rate).astype(int)
+    start_ind_offset = 0
+    end_ind_offset = trace_len
+    # get an x frame segment of each cells trace after each shuffled spontaneous timepoint
+    spont_traces = eventlocked_traces(traces_array, shuffled_spont_inds, start_ind_offset, end_ind_offset)
+    # average over the response window (x frames) for each shuffle,
+    spont_mean = spont_traces.mean(axis=0)  #Returns (nShuffles, nCells) - mean repsonse following each shuffled spont frame
+
+    # Goal is to figure out how each response compares to the shuffled distribution, which is just
+    # a searchsorted call if we first sort the shuffled.
+    spont_mean_sorted = np.sort(spont_mean, axis=0) # for each cell, sort the spontaneous mean values (axis0 is shuffles, axis1 is cells)
+    response_insertion_ind = np.empty(mean_responses.shape) # should be nConditions, nCells
+    # in cases where there is only 1 unique ID (i.e. one neuron in FOV, or one running or pupil trace), duplicate dims so the code below works
+    if spont_mean_sorted.ndim == 1:
+        spont_mean_sorted = np.expand_dims(spont_mean_sorted, axis=1)
+    # loop through indices and figure out how many times the mean response is greater than the spontaneous shuffles
+    for ind_cell in range(mean_responses.shape[1]):
+        response_insertion_ind[:, ind_cell] = np.searchsorted(spont_mean_sorted[:, ind_cell],
+                                                              mean_responses[:, ind_cell])
+    # p value is 1 over the fraction times that a given mean response is larger than the 10,000 shuffle means
+    # response_insertion_ind tells the index that the mean response would have to be placed in to maintain the order of the shuffled spontaneous
+    # if that number is 10k, the mean response is larger than all the shuffles
+    # dividing response_insertion_index by 10k gives you the fraction of times that mean response was greater than the shuffles
+    # then divide by 1 to get p-value
+    proportion_spont_larger_than_sample = 1 - (response_insertion_ind / number_of_shuffles)
+    p_values = proportion_spont_larger_than_sample
+    # result = xr.DataArray(data=proportion_spont_larger_than_sample,
+    #                       coords=mean_responses.coords)
+    return p_values
+
+
 def get_stimulus_response_df(ophys_experiment,
                              data_type='dff',
                              event_type='all',
@@ -300,8 +424,6 @@ def get_stimulus_response_df(ophys_experiment,
                              response_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
-                             compute_means=True,
-                             compute_significance=False,
                              **kwargs):
     '''
     Get stimulus aligned responses from one ophys_experiment.
@@ -332,10 +454,6 @@ def get_stimulus_response_df(ophys_experiment,
         Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
         If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
         be used and output_sampling_rate should not be specified.
-    compute_means: bool
-        Default=True, computes mean response and spontaneous (baseline) values. Adds them as additional columns.
-    compute_significance: bool
-        Currently, not working. A placeholder for future addition of finding significant responses.
 
     kwargs: key, value mappings
         Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
@@ -356,39 +474,32 @@ def get_stimulus_response_df(ophys_experiment,
         response_window_duration=response_window_duration,
         interpolate=interpolate,
         output_sampling_rate=output_sampling_rate,
-        compute_means=compute_means,
-        compute_significance=compute_significance,
         **kwargs)
 
     # set up identifier columns depending on whether behavioral or neural data is being used
-    if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or (data_type == 'lick_rate'):
+    # if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or (data_type == 'lick_rate'):
+    if ('lick' in data_type) or ('pupil' in data_type) or ('running' in data_type):
         # set up variables to handle only one timeseries per event instead of multiple cell_specimen_ids
         unique_id_string = 'trace_id'  # create a column to take the place of 'cell_specimen_id'
     else:
         # all cell specimen ids in an ophys_experiment
         unique_id_string = 'cell_specimen_id'
 
+    # get mean response after stimulus onset and during pre-stimulus baseline
+    mean_response = stimulus_response_xr['mean_response']
+    mean_baseline = stimulus_response_xr['mean_baseline']
+    stacked_response = mean_response.stack(
+        multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
+    stacked_baseline = mean_baseline.stack(
+        multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
 
+    # get p_value for each stimulus response compared to a shuffled distribution of gray screen values
+    p_vals_gray_screen = stimulus_response_xr['p_value_gray_screen']
+    stacked_pval_gray_screen = p_vals_gray_screen.stack(
+        multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
+
+    # get event locked traces and timestamps from xarray
     traces = stimulus_response_xr['eventlocked_traces']
-    if compute_means is True:
-        mean_response = stimulus_response_xr['mean_response']
-        mean_baseline = stimulus_response_xr['mean_baseline']
-        stacked_response = mean_response.stack(
-            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
-        stacked_baseline = mean_baseline.stack(
-            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
-
-    if compute_significance is True:
-        p_vals_omission = stimulus_response_xr['p_value_omission']
-        p_vals_stimulus = stimulus_response_xr['p_value_stimulus']
-        p_vals_gray_screen = stimulus_response_xr['p_value_gray_screen']
-        stacked_pval_omission = p_vals_omission.stack(
-            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
-        stacked_pval_stimulus = p_vals_stimulus.stack(
-            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
-        stacked_pval_gray_screen = p_vals_gray_screen.stack(
-            multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
-
     stacked_traces = traces.stack(multi_index=(
         'stimulus_presentations_id', unique_id_string)).transpose()
     num_repeats = len(stacked_traces)
@@ -396,44 +507,23 @@ def get_stimulus_response_df(ophys_experiment,
         stacked_traces.coords['eventlocked_timestamps'].data[np.newaxis, :],
         repeats=num_repeats, axis=0)
 
-    if compute_means is False and compute_significance is False:
-        stimulus_response_df = pd.DataFrame({
-            'stimulus_presentations_id': stacked_traces.coords['stimulus_presentations_id'],  # noqa E501
-            unique_id_string: stacked_traces.coords[unique_id_string],
-            'trace': list(stacked_traces.data),
-            'trace_timestamps': list(trace_timestamps),
-        })
-    elif compute_means is True and compute_significance is False:
-        stimulus_response_df = pd.DataFrame({
-            'stimulus_presentations_id': stacked_traces.coords['stimulus_presentations_id'],  # noqa E501
-            unique_id_string: stacked_traces.coords[unique_id_string],
-            'trace': list(stacked_traces.data),
-            'trace_timestamps': list(trace_timestamps),
-            'mean_response': stacked_response.data,
-            'baseline_response': stacked_baseline.data,
-        })
-    elif compute_means is False and compute_significance is True:
-        stimulus_response_df = pd.DataFrame({
-            'stimulus_presentations_id': stacked_traces.coords['stimulus_presentations_id'],  # noqa E501
-            'cell_specimen_id': stacked_traces.coords['cell_specimen_id'],
-            'trace': list(stacked_traces.data),
-            'trace_timestamps': list(trace_timestamps),
-            'p_value_gray_screen': stacked_pval_gray_screen,
-            'p_value_omission': stacked_pval_omission,
-            'p_value_stimulus': stacked_pval_stimulus,
-        })
+    # turn it all into a dataframe
+    stimulus_response_df = pd.DataFrame({
+        'stimulus_presentations_id': stacked_traces.coords['stimulus_presentations_id'],  # noqa E501
+        unique_id_string: stacked_traces.coords[unique_id_string],
+        'trace': list(stacked_traces.data),
+        'trace_timestamps': list(trace_timestamps),
+        'mean_response': stacked_response.data,
+        'baseline_response': stacked_baseline.data,
+        'p_value_gray_screen': stacked_pval_gray_screen,
+    })
+
+    # save frame rate as a column for reference
+    if output_sampling_rate is not None:
+        stimulus_response_df['frame_rate'] = output_sampling_rate
     else:
-        stimulus_response_df = pd.DataFrame({
-            'stimulus_presentations_id': stacked_traces.coords['stimulus_presentations_id'],  # noqa E501
-            unique_id_string: stacked_traces.coords[unique_id_string],
-            'trace': list(stacked_traces.data),
-            'trace_timestamps': list(trace_timestamps),
-            'p_value_gray_screen': stacked_pval_gray_screen,
-            'p_value_omission': stacked_pval_omission,
-            'p_value_stimulus': stacked_pval_stimulus,
-            'mean_response': stacked_response.data,
-            'baseline_response': stacked_baseline.data
-        })
+        stimulus_response_df['frame_rate'] = ophys_experiment.metadata['ophys_frame_rate']
+
     return stimulus_response_df
 
 
