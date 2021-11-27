@@ -739,7 +739,7 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
     '''
     Parameters:
     ____________
-    trials_df: Pandas.DataFrame
+    trials: Pandas.DataFrame
         ophys_experiment.trials
     stimulus_presentation: Pandas.DataFrame
         ophys_experiment.stimulus_presentations
@@ -747,7 +747,10 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
     Returns:
     ___________
     stimulus_presentation: Pandas.DataFrame
-        with 'reward_rate' column
+        with 'reward_rate_trials' column
+
+    'reward_rate_trials' is calculated by the SDK based on the rolling reward rate over trials (not stimulus presentations)
+    https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/trials_processing.py#L941
     '''
 
     last_time = 0
@@ -768,9 +771,8 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
     for i in range(len(stimulus_presentations) - len(reward_rate_by_frame)):
         reward_rate_by_frame.append(reward_rate_by_frame[-1])
 
-    stimulus_presentations['reward_rate'] = reward_rate_by_frame
+    stimulus_presentations['reward_rate_trials'] = reward_rate_by_frame
     return stimulus_presentations
-
 
 
 def add_epochs_to_stimulus_presentations(stimulus_presentations, time_column='start_time', epoch_duration_mins=10):
@@ -835,6 +837,36 @@ def add_trials_data_to_stimulus_presentations_table(stimulus_presentations, tria
     return stimulus_presentations
 
 
+def add_engagement_state_to_stimulus_presentations(stimulus_presentations, trials):
+    """
+    Add 'engaged' Boolean column and 'engagement_state' string ('engaged' or 'disengaged'
+    using threshold of  1/90 rewards per second (~2/3 rewards per minute).
+    Will merge trials data in to stimulus presentations if it has not been done already.
+
+    :param stimulus_presentations: stimulus_presentations attribute of BehaviorOphysExperiment
+    :param trials: trials attribute of BehaviorOphysExperiment object
+    :return: stimulus_presentations with columns added: 'rewarded', 'reward_rate', 'reward_rate_per_second', 'engaged', 'engagement_state'
+    """
+    if 'reward_time' not in stimulus_presentations.keys():
+        stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, trials)
+
+    # create Boolean column indicating whether the trial was rewarded or not
+    stimulus_presentations['rewarded'] = [False if np.isnan(reward_time) else True for reward_time in stimulus_presentations.reward_time.values]
+    # (rewards/stimulus)*(1 stimulus/.750s) = rewards/second
+    stimulus_presentations['reward_rate_per_second'] = stimulus_presentations['rewarded'].rolling(window=320,
+                                                                                                  min_periods=1,
+                                                                                                  win_type='triang').mean() / .75  # units of rewards per second
+    # (rewards/stimulus)*(1 stimulus/.750s)*(60s/min) = rewards/min
+    stimulus_presentations['reward_rate'] = stimulus_presentations['rewarded'].rolling(window=320, min_periods=1,
+                                                                                       win_type='triang').mean() * (
+                                            60 / .75)  # units of rewards/min
+
+    reward_threshold = 2 / 3  # 2/3 rewards per minute = 1/90 rewards/second
+    stimulus_presentations['engaged'] = [x > reward_threshold for x in stimulus_presentations['reward_rate']]
+    stimulus_presentations['engagement_state'] = ['engaged' if True else 'disengaged' for engaged in stimulus_presentations['engaged'].values]
+
+    return stimulus_presentations
+
 
 def time_from_last(timestamps, event_times, side='right'):
     '''
@@ -857,11 +889,11 @@ def time_from_last(timestamps, event_times, side='right'):
 
 def add_time_from_last_change_to_stimulus_presentations(stimulus_presentations):
     '''
-        Adds a column to stimulus_presentations called 'time_from_last_change', which is the time, in seconds since the last image change
+    Adds a column to stimulus_presentations called 'time_from_last_change', which is the time, in seconds since the last image change
 
-        ARGS: SDK session object
-        MODIFIES: session.stimulus_presentations
-        RETURNS: stimulus_presentations
+    ARGS: SDK session object
+    MODIFIES: session.stimulus_presentations
+    RETURNS: stimulus_presentations
     '''
     stimulus_times = stimulus_presentations["start_time"].values
     change_times = stimulus_presentations.query('is_change')['start_time'].values
@@ -901,6 +933,8 @@ def get_annotated_stimulus_presentations(ophys_experiment):
                                                                    time_column='start_time',
                                                                    epoch_duration_mins=10)
     stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, ophys_experiment.trials)
+    # add engagement state based on reward rate - note this reward rate is calculated differently than the SDK version
+    stimulus_presentations = add_engagement_state_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
     # add time from last change
     stimulus_presentations = add_time_from_last_change_to_stimulus_presentations(stimulus_presentations)
     # add pre-change, pre-omission, lick on next flash etc
