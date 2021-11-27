@@ -720,14 +720,8 @@ def add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_trackin
         stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_tracking, column_to_use='pupil_area')  # noqa E501
     '''
 
-    # set all timepoints that are likely blinks to NaN for all eye_tracking columns
-    eye_tracking.loc[eye_tracking['likely_blink'], :] = np.nan
-    # compute pupil_diameter or radius from pupil_area
-    if column_to_use == 'pupil_diameter':
-        eye_tracking['pupil_diameter'] = np.sqrt(eye_tracking.pupil_area) / np.pi  # convert pupil area to pupil diameter
-    elif column_to_use == 'pupil_radius':
-        eye_tracking['pupil_radius'] = np.sqrt(eye_tracking['pupil_area'] * (1 / np.pi)) # convert pupil area to pupil radius
-
+    eye_tracking = get_pupil_data(eye_tracking, interpolate_likely_blinks=True, normalize_to_gray_screen=True, zscore=False,
+                   interpolate_to_ophys=False, ophys_timestamps=None, stimulus_presentations=stimulus_presentations)
 
     eye_tracking_timeseries = eye_tracking[column_to_use].values
     mean_pupil_around_stimulus = stimulus_presentations.apply(
@@ -898,7 +892,7 @@ def get_annotated_stimulus_presentations(ophys_experiment):
     try:
         stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations,
                                                                            ophys_experiment.eye_tracking,
-                                                                           column_to_use='pupil_diameter',
+                                                                           column_to_use='pupil_width',
                                                                            time_window=[0, 0.75])
     except:
         print('could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(ophys_experiment.eye_tracking))
