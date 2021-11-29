@@ -336,7 +336,11 @@ def get_spontaneous_frames(stimulus_presentations, ophys_timestamps, gray_screen
     spont_duration = 4 * 60  # 4mins * 60sec
 
     # for spontaneous at beginning of session, get 4 minutes of gray screen values prior to first stimulus
-    behavior_start_time = stimulus_presentations.iloc[0].start_time
+    if stimulus_presentations.iloc[0].image_name == 'omitted': # something weird happens when first stimulus is omitted, start time is at beginning of session
+        first_index = 1
+    else:
+        first_index = 0
+    behavior_start_time = stimulus_presentations.iloc[first_index].start_time
     spontaneous_start_time_pre = behavior_start_time - spont_duration
     spontaneous_end_time_pre = behavior_start_time
     spontaneous_start_frame_pre = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_start_time_pre)
