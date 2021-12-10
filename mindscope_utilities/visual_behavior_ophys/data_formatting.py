@@ -866,7 +866,7 @@ def add_engagement_state_to_stimulus_presentations(stimulus_presentations, trial
                                             60 / .75)  # units of rewards/min
 
     reward_threshold = 2 / 3  # 2/3 rewards per minute = 1/90 rewards/second
-    stimulus_presentations['engaged'] = [x > reward_threshold for x in stimulus_presentations['reward_rate']]
+    stimulus_presentations['engaged'] = [x > reward_threshold for x in stimulus_presentations['reward_rate'].values]
     stimulus_presentations['engagement_state'] = ['engaged' if engaged == True else 'disengaged' for engaged in stimulus_presentations['engaged'].values]
 
     return stimulus_presentations
