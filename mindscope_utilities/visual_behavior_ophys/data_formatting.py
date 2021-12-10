@@ -524,11 +524,16 @@ def get_stimulus_response_df(ophys_experiment,
         'p_value_gray_screen': stacked_pval_gray_screen,
     })
 
-    # save frame rate as a column for reference
+    # save frame rate, time window and other metadata for reference
     if output_sampling_rate is not None:
-        stimulus_response_df['frame_rate'] = output_sampling_rate
+        stimulus_response_df['ophys_frame_rate'] = output_sampling_rate
     else:
-        stimulus_response_df['frame_rate'] = ophys_experiment.metadata['ophys_frame_rate']
+        stimulus_response_df['ophys_frame_rate'] = ophys_experiment.metadata['ophys_frame_rate']
+    stimulus_response_df['data_type'] = data_type
+    stimulus_response_df['event_type'] = event_type
+    stimulus_response_df['interpolate'] = interpolate
+    stimulus_response_df['output_sampling_rate'] = output_sampling_rate
+    stimulus_response_df['response_window_duration'] = response_window_duration
 
     return stimulus_response_df
 
