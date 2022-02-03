@@ -949,6 +949,7 @@ def get_annotated_stimulus_presentations(ophys_experiment):
     # add pre-change, pre-omission, lick on next flash etc
     stimulus_presentations['pre_change'] = stimulus_presentations['is_change'].shift(-1)
     stimulus_presentations['pre_omitted'] = stimulus_presentations['omitted'].shift(-1)
+    stimulus_presentations['post_omitted'] = stimulus_presentations['omitted'].shift(1)
     stimulus_presentations['licked'] = [True if len(licks) > 0 else False for licks in stimulus_presentations.licks.values]
     stimulus_presentations['lick_on_next_flash'] = stimulus_presentations['licked'].shift(-1)
 
