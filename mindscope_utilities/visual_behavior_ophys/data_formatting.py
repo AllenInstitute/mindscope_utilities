@@ -256,13 +256,18 @@ def get_stimulus_response_xr(ophys_experiment,
     # get mean response for each trial
     mean_responses = stimulus_response_xr.mean_response.data.T  # input needs to be array of nConditions, nCells
 
-    # compute significance of each trial, returns array of nConditions, nCells
-    p_value_gray_screen = get_p_value_from_shuffled_spontaneous(mean_responses,
-                                                                ophys_experiment.stimulus_presentations,
-                                                                ophys_experiment.ophys_timestamps,
-                                                                traces_array,
-                                                                response_window_duration*output_sampling_rate,
-                                                                output_sampling_rate)
+    try:
+        # compute significance of each trial, returns array of nConditions, nCells
+        p_value_gray_screen = get_p_value_from_shuffled_spontaneous(mean_responses,
+                                                                    ophys_experiment.stimulus_presentations,
+                                                                    ophys_experiment.ophys_timestamps,
+                                                                    traces_array,
+                                                                    response_window_duration*output_sampling_rate,
+                                                                    output_sampling_rate)
+    except:
+        p_value_gray_screen = np.zeros(mean_responses.shape)
+
+    print(p_value_gray_screen.shape)
 
     # put p_value_gray_screen back into same coordinates as xarray and make it an xarray data array
     p_value_gray_screen = xr.DataArray(data=p_value_gray_screen.T, coords=stimulus_response_xr.mean_response.coords)
