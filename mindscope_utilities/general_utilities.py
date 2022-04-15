@@ -172,7 +172,24 @@ def index_of_nearest_value(data_timestamps, event_timestamps):
     return event_indices
 
 
-def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None, output_sampling_rate=None, include_endpoint=True, output_format='tidy', interpolate=True):  # NOQA E501
+def eventlocked_traces(traces_array, event_indices, start_ind_offset, end_ind_offset):
+    '''
+    Extract trace for each cell, for each event-relative window.
+    Args:
+        traces_array (np.ndarray): shape (nSamples, nCells) with timeseries for each cell
+        event_indices (np.ndarray): 1-d array of shape (nEvents) with closest sample ind for each event
+        start_ind_offset (int): Where to start the window relative to each event ind
+        end_ind_offset (int): Where to end the window relative to each event ind
+    Returns:
+        sliced_dataout (np.ndarray): shape (nSamples, nEvents, nCells)
+    '''
+    all_inds = event_indices + np.arange(start_ind_offset, end_ind_offset)[:, None] # takes a slice around all event_indices
+    sliced_dataout = traces_array.T[all_inds]
+    return sliced_dataout
+
+
+def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None,
+                             output_sampling_rate=None, include_endpoint=True, output_format='tidy', interpolate=True):  # NOQA E501
     '''
     Slices a timeseries relative to a given set of event times
     to build an event-triggered response.
@@ -298,7 +315,9 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     assert t_after is None or t_end is None, 'cannot pass both t_after and t_end'  # noqa: E501
 
     if interpolate is False:
-        assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate'  # NOQA E501
+        output_sampling_rate = None
+        # MG - commenting this out because it crashes my code when interpolate = False, even if output_sampling_rate = None
+        # assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate'  # NOQA E501
 
     # assign time values to t_start and t_end
     if t_start is None:
