@@ -920,6 +920,7 @@ def add_time_from_last_change_to_stimulus_presentations(stimulus_presentations):
 
 def get_annotated_stimulus_presentations(ophys_experiment):
     """
+    Takes in an ophys_experiment dataset object and returns the stimulus_presentations table with additional columns.
     Adds several useful columns to the stimulus_presentations table, including the mean running speed and pupil diameter for each stimulus,
     the times of licks for each stimulus, the rolling reward rate, an identifier for 10 minute epochs within a session,
     whether or not a stimulus was a pre-change or pre or post omission, and whether change stimuli were hits or misses
@@ -962,7 +963,7 @@ def get_annotated_stimulus_presentations(ophys_experiment):
 
 
 
-def annotate_stimulus_presentations_with_behavioral_response_info(dataset, inplace=False):
+def annotate_stimuli(dataset, inplace=False):
     '''
     adds the following columns to the stimulus_presentations table, facilitating calculation
     of behavior performance based entirely on the stimulus_presentations table:
