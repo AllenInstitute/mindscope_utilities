@@ -124,6 +124,7 @@ def get_stimulus_response_xr(ophys_experiment,
                              response_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
+                             exclude_invalid_rois=True,
                              **kwargs):
     '''
     Parameters:
@@ -152,6 +153,10 @@ def get_stimulus_response_xr(ophys_experiment,
         Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
         If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
         be used and output_sampling_rate should not be specified.
+    exclude_invalid_rois : bool
+        If True, only ROIs deemed as 'valid' by the classifier will be returned. If False, 'invalid' ROIs will be returned
+        This only works if the provided dataset was loaded using internal Allen Institute database, does not work for NWB files.
+        In the case that dataset object is loaded through publicly released NWB files, only 'valid' ROIs will be returned
 
 
     kwargs: key, value mappings
@@ -196,7 +201,7 @@ def get_stimulus_response_xr(ophys_experiment,
         data[unique_id_string] = 0  # only one value because only one trace
     else:
         # load neural data
-        data = build_tidy_cell_df(ophys_experiment)
+        data = build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=exclude_invalid_rois)
         # all cell specimen ids in an ophys_experiment
         unique_ids = np.unique(data['cell_specimen_id'].values)
 
@@ -266,8 +271,6 @@ def get_stimulus_response_xr(ophys_experiment,
                                                                     output_sampling_rate)
     except:
         p_value_gray_screen = np.zeros(mean_responses.shape)
-
-    print(p_value_gray_screen.shape)
 
     # put p_value_gray_screen back into same coordinates as xarray and make it an xarray data array
     p_value_gray_screen = xr.DataArray(data=p_value_gray_screen.T, coords=stimulus_response_xr.mean_response.coords)
@@ -435,6 +438,7 @@ def get_stimulus_response_df(ophys_experiment,
                              response_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
+                             exclude_invalid_rois=True,
                              **kwargs):
     '''
     Get stimulus aligned responses from one ophys_experiment.
@@ -465,6 +469,10 @@ def get_stimulus_response_df(ophys_experiment,
         Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
         If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
         be used and output_sampling_rate should not be specified.
+     exclude_invalid_rois : bool
+        If True, only ROIs deemed as 'valid' by the classifier will be returned. If False, 'invalid' ROIs will be returned
+        This only works if the provided dataset was loaded using internal Allen Institute database, does not work for NWB files.
+        In the case that dataset object is loaded through publicly released NWB files, only 'valid' ROIs will be returned
 
     kwargs: key, value mappings
         Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
@@ -485,6 +493,7 @@ def get_stimulus_response_df(ophys_experiment,
         response_window_duration=response_window_duration,
         interpolate=interpolate,
         output_sampling_rate=output_sampling_rate,
+        exclude_invalid_rois=exclude_invalid_rois,
         **kwargs)
 
     # set up identifier columns depending on whether behavioral or neural data is being used
@@ -1095,7 +1104,7 @@ def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, eng
     -----------
     stimuli: Pandas.DataFrame
         From experiment.stimulus_presentations, after annotating as follows:
-            annotate_stimulus_presentations_with_behavioral_response_info(experiment, inplace = True)
+            annotate_stimuli(experiment, inplace = True)
     aggfunc: function
         function to apply to calculation. Default = np.mean
         other options include np.size (to get counts) or np.median
@@ -1146,7 +1155,7 @@ def calculate_dprime_matrix(stimuli, sort_by_column=True, engaged_only=True):
     -----------
     stimuli: Pandas.DataFrame
         From experiment.stimulus_presentations, after annotating as follows:
-            annotate_stimulus_presentations_with_behavioral_response_info(experiment, inplace = True)
+            annotate_stimuli(experiment, inplace = True)
     sort_by_column: Boolean
         if True (default), sorts outputs by column means
     engaged_only: Boolean
