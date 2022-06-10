@@ -945,17 +945,19 @@ def get_annotated_stimulus_presentations(ophys_experiment):
     stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations,
                                                                                ophys_experiment.running_speed,
                                                                                time_window=[0, 0.75])
-    try:
-        stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations,
-                                                                           ophys_experiment.eye_tracking,
-                                                                           column_to_use='pupil_width',
-                                                                           time_window=[0, 0.75])
-    except:
-        print('could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(ophys_experiment.eye_tracking))
+
+    if hasattr('ophys_experiment', 'eye_tracking'):
+        try:
+            stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations,
+                                                                               ophys_experiment.eye_tracking,
+                                                                               column_to_use='pupil_width',
+                                                                               time_window=[0, 0.75])
+        except:
+            print('could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(ophys_experiment.eye_tracking))
     stimulus_presentations = add_reward_rate_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
     stimulus_presentations = add_epochs_to_stimulus_presentations(stimulus_presentations,
                                                                    time_column='start_time',
-                                                                   epoch_duration_mins=10)
+                                                                   epoch_duration_mins=5)
     stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, ophys_experiment.trials)
     # add engagement state based on reward rate - note this reward rate is calculated differently than the SDK version
     stimulus_presentations = add_engagement_state_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
