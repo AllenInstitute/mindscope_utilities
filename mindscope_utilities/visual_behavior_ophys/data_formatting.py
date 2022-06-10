@@ -823,22 +823,25 @@ def add_epochs_to_stimulus_presentations(stimulus_presentations, time_column='st
 
 def add_trials_id_to_stimulus_presentations(stimulus_presentations, trials):
     """
-    Add trials_id to stimulus presentations by finding the closest change time to each stimulus start time
-    If there is no corresponding change time, the trials_id is NaN
+    Add trials_id to stimulus presentations.
+    Each stimulus will have associated 'trials_id'.
+    'trials_id' is determined by comparing 'start_time 'from stimulus_presentations and trials.
+    'trials_id' is last trials_id with start_time <= stimulus_time.
+    
     :param: stimulus_presentations: stimulus_presentations attribute of BehaviorOphysExperiment object, must have 'start_time'
     :param trials: trials attribute of BehaviorOphysExperiment object, must have 'change_time'
     """
-    # for each stimulus_presentation, find the trials_id that is closest to the start time
-    # add to a new column called 'trials_id'
-    for idx, stimulus_presentation in stimulus_presentations.iterrows():
-        start_time = stimulus_presentation['start_time']
-        query_string = 'change_time > @start_time - 1 and change_time < @start_time + 1'
-        trials_id = (np.abs(start_time - trials.query(query_string)['change_time']))
-        if len(trials_id) == 1:
-            trials_id = trials_id.idxmin()
-        else:
-            trials_id = np.nan
-        stimulus_presentations.loc[idx, 'trials_id'] = trials_id
+    # make a copy of trials with 'start_time' as index to speed lookup
+    new_trials = trials.copy().reset_index().set_index('start_time')
+    # add trials_id and trial_stimulus_index
+    stimulus_presentations['trials_id'] = None
+    for idx, row in stimulus_presentations.iterrows():
+        # trials_id is last trials_id with start_time <= stimulus_time
+        try:
+            trials_id = new_trials.loc[:row['start_time']].iloc[-1]['trials_id']
+        except IndexError:
+            trials_id = -1
+        stimulus_presentations.at[idx, 'trials_id'] = trials_id
     return stimulus_presentations
 
 
