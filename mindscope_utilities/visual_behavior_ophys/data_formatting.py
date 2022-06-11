@@ -124,6 +124,7 @@ def get_stimulus_response_xr(ophys_experiment,
                              response_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
+                             exclude_invalid_rois=True,
                              **kwargs):
     '''
     Parameters:
@@ -152,6 +153,10 @@ def get_stimulus_response_xr(ophys_experiment,
         Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
         If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
         be used and output_sampling_rate should not be specified.
+    exclude_invalid_rois : bool
+        If True, only ROIs deemed as 'valid' by the classifier will be returned. If False, 'invalid' ROIs will be returned
+        This only works if the provided dataset was loaded using internal Allen Institute database, does not work for NWB files.
+        In the case that dataset object is loaded through publicly released NWB files, only 'valid' ROIs will be returned
 
 
     kwargs: key, value mappings
@@ -196,7 +201,7 @@ def get_stimulus_response_xr(ophys_experiment,
         data[unique_id_string] = 0  # only one value because only one trace
     else:
         # load neural data
-        data = build_tidy_cell_df(ophys_experiment)
+        data = build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=exclude_invalid_rois)
         # all cell specimen ids in an ophys_experiment
         unique_ids = np.unique(data['cell_specimen_id'].values)
 
@@ -266,8 +271,6 @@ def get_stimulus_response_xr(ophys_experiment,
                                                                     output_sampling_rate)
     except:
         p_value_gray_screen = np.zeros(mean_responses.shape)
-
-    print(p_value_gray_screen.shape)
 
     # put p_value_gray_screen back into same coordinates as xarray and make it an xarray data array
     p_value_gray_screen = xr.DataArray(data=p_value_gray_screen.T, coords=stimulus_response_xr.mean_response.coords)
@@ -435,6 +438,7 @@ def get_stimulus_response_df(ophys_experiment,
                              response_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
+                             exclude_invalid_rois=True,
                              **kwargs):
     '''
     Get stimulus aligned responses from one ophys_experiment.
@@ -465,6 +469,10 @@ def get_stimulus_response_df(ophys_experiment,
         Input data will be interpolated to this sampling rate if interpolate = True (default). # NOQA E501
         If passing interpolate = False, the sampling rate of the input timeseries will # NOQA E501
         be used and output_sampling_rate should not be specified.
+     exclude_invalid_rois : bool
+        If True, only ROIs deemed as 'valid' by the classifier will be returned. If False, 'invalid' ROIs will be returned
+        This only works if the provided dataset was loaded using internal Allen Institute database, does not work for NWB files.
+        In the case that dataset object is loaded through publicly released NWB files, only 'valid' ROIs will be returned
 
     kwargs: key, value mappings
         Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
@@ -485,6 +493,7 @@ def get_stimulus_response_df(ophys_experiment,
         response_window_duration=response_window_duration,
         interpolate=interpolate,
         output_sampling_rate=output_sampling_rate,
+        exclude_invalid_rois=exclude_invalid_rois,
         **kwargs)
 
     # set up identifier columns depending on whether behavioral or neural data is being used
@@ -814,22 +823,25 @@ def add_epochs_to_stimulus_presentations(stimulus_presentations, time_column='st
 
 def add_trials_id_to_stimulus_presentations(stimulus_presentations, trials):
     """
-    Add trials_id to stimulus presentations by finding the closest change time to each stimulus start time
-    If there is no corresponding change time, the trials_id is NaN
+    Add trials_id to stimulus presentations.
+    Each stimulus will have associated 'trials_id'.
+    'trials_id' is determined by comparing 'start_time 'from stimulus_presentations and trials.
+    'trials_id' is last trials_id with start_time <= stimulus_time.
+    
     :param: stimulus_presentations: stimulus_presentations attribute of BehaviorOphysExperiment object, must have 'start_time'
     :param trials: trials attribute of BehaviorOphysExperiment object, must have 'change_time'
     """
-    # for each stimulus_presentation, find the trials_id that is closest to the start time
-    # add to a new column called 'trials_id'
-    for idx, stimulus_presentation in stimulus_presentations.iterrows():
-        start_time = stimulus_presentation['start_time']
-        query_string = 'change_time > @start_time - 1 and change_time < @start_time + 1'
-        trials_id = (np.abs(start_time - trials.query(query_string)['change_time']))
-        if len(trials_id) == 1:
-            trials_id = trials_id.idxmin()
-        else:
-            trials_id = np.nan
-        stimulus_presentations.loc[idx, 'trials_id'] = trials_id
+    # make a copy of trials with 'start_time' as index to speed lookup
+    new_trials = trials.copy().reset_index().set_index('start_time')
+    # add trials_id and trial_stimulus_index
+    stimulus_presentations['trials_id'] = None
+    for idx, row in stimulus_presentations.iterrows():
+        # trials_id is last trials_id with start_time <= stimulus_time
+        try:
+            trials_id = new_trials.loc[:row['start_time']].iloc[-1]['trials_id']
+        except IndexError:
+            trials_id = -1
+        stimulus_presentations.at[idx, 'trials_id'] = trials_id
     return stimulus_presentations
 
 
@@ -918,7 +930,7 @@ def add_time_from_last_change_to_stimulus_presentations(stimulus_presentations):
 
 
 
-def get_annotated_stimulus_presentations(ophys_experiment):
+def get_annotated_stimulus_presentations(ophys_experiment, epoch_duration_mins=10):
     """
     Takes in an ophys_experiment dataset object and returns the stimulus_presentations table with additional columns.
     Adds several useful columns to the stimulus_presentations table, including the mean running speed and pupil diameter for each stimulus,
@@ -936,17 +948,19 @@ def get_annotated_stimulus_presentations(ophys_experiment):
     stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations,
                                                                                ophys_experiment.running_speed,
                                                                                time_window=[0, 0.75])
-    try:
-        stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations,
-                                                                           ophys_experiment.eye_tracking,
-                                                                           column_to_use='pupil_width',
-                                                                           time_window=[0, 0.75])
-    except:
-        print('could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(ophys_experiment.eye_tracking))
+
+    if hasattr('ophys_experiment', 'eye_tracking'):
+        try:
+            stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations,
+                                                                               ophys_experiment.eye_tracking,
+                                                                               column_to_use='pupil_width',
+                                                                               time_window=[0, 0.75])
+        except:
+            print('could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(ophys_experiment.eye_tracking))
     stimulus_presentations = add_reward_rate_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
     stimulus_presentations = add_epochs_to_stimulus_presentations(stimulus_presentations,
                                                                    time_column='start_time',
-                                                                   epoch_duration_mins=10)
+                                                                   epoch_duration_mins=epoch_duration_mins)
     stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, ophys_experiment.trials)
     # add engagement state based on reward rate - note this reward rate is calculated differently than the SDK version
     stimulus_presentations = add_engagement_state_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
@@ -1095,7 +1109,7 @@ def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, eng
     -----------
     stimuli: Pandas.DataFrame
         From experiment.stimulus_presentations, after annotating as follows:
-            annotate_stimulus_presentations_with_behavioral_response_info(experiment, inplace = True)
+            annotate_stimuli(experiment, inplace = True)
     aggfunc: function
         function to apply to calculation. Default = np.mean
         other options include np.size (to get counts) or np.median
@@ -1146,7 +1160,7 @@ def calculate_dprime_matrix(stimuli, sort_by_column=True, engaged_only=True):
     -----------
     stimuli: Pandas.DataFrame
         From experiment.stimulus_presentations, after annotating as follows:
-            annotate_stimulus_presentations_with_behavioral_response_info(experiment, inplace = True)
+            annotate_stimuli(experiment, inplace = True)
     sort_by_column: Boolean
         if True (default), sorts outputs by column means
     engaged_only: Boolean
