@@ -930,7 +930,7 @@ def add_time_from_last_change_to_stimulus_presentations(stimulus_presentations):
 
 
 
-def get_annotated_stimulus_presentations(ophys_experiment):
+def get_annotated_stimulus_presentations(ophys_experiment, epoch_duration_mins=10):
     """
     Takes in an ophys_experiment dataset object and returns the stimulus_presentations table with additional columns.
     Adds several useful columns to the stimulus_presentations table, including the mean running speed and pupil diameter for each stimulus,
@@ -960,7 +960,7 @@ def get_annotated_stimulus_presentations(ophys_experiment):
     stimulus_presentations = add_reward_rate_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
     stimulus_presentations = add_epochs_to_stimulus_presentations(stimulus_presentations,
                                                                    time_column='start_time',
-                                                                   epoch_duration_mins=10)
+                                                                   epoch_duration_mins=epoch_duration_mins)
     stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, ophys_experiment.trials)
     # add engagement state based on reward rate - note this reward rate is calculated differently than the SDK version
     stimulus_presentations = add_engagement_state_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
