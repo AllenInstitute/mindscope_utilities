@@ -287,8 +287,7 @@ def get_stimulus_response_xr(ophys_experiment,
             ophys_experiment.stimulus_presentations,
             ophys_experiment.ophys_timestamps,
             traces_array,
-            response_window_duration *
-            output_sampling_rate,
+            response_window_duration * output_sampling_rate,
             output_sampling_rate)
     except BaseException:
         p_value_gray_screen = np.zeros(mean_responses.shape)
@@ -442,8 +441,7 @@ def get_p_value_from_shuffled_spontaneous(mean_responses,
         ophys_frame_rate = 1 / np.diff(ophys_timestamps).mean()
 
     trace_len = np.round(
-        response_window_duration *
-        ophys_frame_rate).astype(int)
+        response_window_duration * ophys_frame_rate).astype(int)
     start_ind_offset = 0
     end_ind_offset = trace_len
     # get an x frame segment of each cells trace after each shuffled
@@ -833,8 +831,7 @@ def add_mean_pupil_to_stimulus_presentations(
             row["start_time"] + time_window[0],
             row["start_time"] + time_window[1],
         ), axis=1,)
-    stimulus_presentations["mean_" +
-                           column_to_use] = mean_pupil_around_stimulus
+    stimulus_presentations["mean_" + column_to_use] = mean_pupil_around_stimulus
     return stimulus_presentations
 
 
