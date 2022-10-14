@@ -178,30 +178,45 @@ def get_stimulus_response_xr(ophys_experiment,
     event_times, event_ids = get_event_timestamps(
         stimulus_presentations, event_type)
 
-    if ('running' in data_type) or ('pupil' in data_type) or ('lick' in data_type):
+    if ('running' in data_type) or (
+            'pupil' in data_type) or ('lick' in data_type):
         # for behavioral datastreams
-        # set up variables to handle only one timeseries per event instead of multiple cell_specimen_ids
-        unique_id_string = 'trace_id'  # create a column to take the place of 'cell_specimen_id'
+        # set up variables to handle only one timeseries per event instead of
+        # multiple cell_specimen_ids
+        # create a column to take the place of 'cell_specimen_id'
+        unique_id_string = 'trace_id'
         unique_ids = [0]  # list to iterate over
     else:
         unique_id_string = 'cell_specimen_id'
 
     if 'running' in data_type:
-        data = ophys_experiment.running_speed.copy() # running_speed attribute is already in tidy format
-        data = data.rename(columns={'speed':'running_speed'}) # rename column so its consistent with data_type
+        # running_speed attribute is already in tidy format
+        data = ophys_experiment.running_speed.copy()
+        # rename column so its consistent with data_type
+        data = data.rename(columns={'speed': 'running_speed'})
         data[unique_id_string] = 0  # only one value because only one trace
     elif 'pupil' in data_type:
-        data = ophys_experiment.eye_tracking.copy() # eye tracking attribute is in tidy format
-        data = get_pupil_data(data, interpolate_likely_blinks=True, normalize_to_gray_screen=True, zscore=False,
-                                interpolate_to_ophys=False, stimulus_presentations=ophys_experiment.stimulus_presentations, ophys_timestamps=None)
+        # eye tracking attribute is in tidy format
+        data = ophys_experiment.eye_tracking.copy()
+        data = get_pupil_data(
+            data,
+            interpolate_likely_blinks=True,
+            normalize_to_gray_screen=True,
+            zscore=False,
+            interpolate_to_ophys=False,
+            stimulus_presentations=ophys_experiment.stimulus_presentations,
+            ophys_timestamps=None)
         # normalize to gray screen baseline
         data[unique_id_string] = 0  # only one value because only one trace
     elif 'lick' in data_type:
-        data = get_licks_df(ophys_experiment) # create dataframe with info about licks for each stimulus timestamp
+        # create dataframe with info about licks for each stimulus timestamp
+        data = get_licks_df(ophys_experiment)
         data[unique_id_string] = 0  # only one value because only one trace
     else:
         # load neural data
-        data = build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=exclude_invalid_rois)
+        data = build_tidy_cell_df(
+            ophys_experiment,
+            exclude_invalid_rois=exclude_invalid_rois)
         # all cell specimen ids in an ophys_experiment
         unique_ids = np.unique(data['cell_specimen_id'].values)
 
@@ -246,7 +261,6 @@ def get_stimulus_response_xr(ophys_experiment,
         }
     )
 
-
     # get traces for significance computation
     if 'events' in data_type:
         traces_array = np.vstack(ophys_experiment.events[data_type].values)
@@ -255,25 +269,35 @@ def get_stimulus_response_xr(ophys_experiment,
     else:
         traces_array = data[data_type].values
 
-    # compute mean activity following stimulus onset and during pre-stimulus baseline
-    stimulus_response_xr = compute_means_xr(stimulus_response_xr, response_window_duration=response_window_duration)
+    # compute mean activity following stimulus onset and during pre-stimulus
+    # baseline
+    stimulus_response_xr = compute_means_xr(
+        stimulus_response_xr,
+        response_window_duration=response_window_duration)
 
     # get mean response for each trial
-    mean_responses = stimulus_response_xr.mean_response.data.T  # input needs to be array of nConditions, nCells
+    # input needs to be array of nConditions, nCells
+    mean_responses = stimulus_response_xr.mean_response.data.T
 
     try:
-        # compute significance of each trial, returns array of nConditions, nCells
-        p_value_gray_screen = get_p_value_from_shuffled_spontaneous(mean_responses,
-                                                                    ophys_experiment.stimulus_presentations,
-                                                                    ophys_experiment.ophys_timestamps,
-                                                                    traces_array,
-                                                                    response_window_duration*output_sampling_rate,
-                                                                    output_sampling_rate)
-    except:
+        # compute significance of each trial, returns array of nConditions,
+        # nCells
+        p_value_gray_screen = get_p_value_from_shuffled_spontaneous(
+            mean_responses,
+            ophys_experiment.stimulus_presentations,
+            ophys_experiment.ophys_timestamps,
+            traces_array,
+            response_window_duration *
+            output_sampling_rate,
+            output_sampling_rate)
+    except BaseException:
         p_value_gray_screen = np.zeros(mean_responses.shape)
 
-    # put p_value_gray_screen back into same coordinates as xarray and make it an xarray data array
-    p_value_gray_screen = xr.DataArray(data=p_value_gray_screen.T, coords=stimulus_response_xr.mean_response.coords)
+    # put p_value_gray_screen back into same coordinates as xarray and make it
+    # an xarray data array
+    p_value_gray_screen = xr.DataArray(
+        data=p_value_gray_screen.T,
+        coords=stimulus_response_xr.mean_response.coords)
 
     # create new xarray with means and p-values
     stimulus_response_xr = xr.Dataset({
@@ -327,7 +351,10 @@ def compute_means_xr(stimulus_response_xr, response_window_duration=0.5):
     return stimulus_response_xr
 
 
-def get_spontaneous_frames(stimulus_presentations, ophys_timestamps, gray_screen_period_to_use='before'):
+def get_spontaneous_frames(
+        stimulus_presentations,
+        ophys_timestamps,
+        gray_screen_period_to_use='before'):
     '''
         Returns a list of the frames that occur during the before and after spontaneous windows. This is copied from VBA. Does not use the full spontaneous period because that is what VBA did. It only uses 4 minutes of the before and after spontaneous period.
 
@@ -343,43 +370,53 @@ def get_spontaneous_frames(stimulus_presentations, ophys_timestamps, gray_screen
     # spont_duration_frames = 4 * 60 * 60  # 4 mins * * 60s/min * 60Hz
     spont_duration = 4 * 60  # 4mins * 60sec
 
-    # for spontaneous at beginning of session, get 4 minutes of gray screen values prior to first stimulus
-    if stimulus_presentations.iloc[0].image_name == 'omitted': # something weird happens when first stimulus is omitted, start time is at beginning of session
+    # for spontaneous at beginning of session, get 4 minutes of gray screen
+    # values prior to first stimulus
+    # something weird happens when first stimulus is omitted, start time is at
+    # beginning of session
+    if stimulus_presentations.iloc[0].image_name == 'omitted':
         first_index = 1
     else:
         first_index = 0
     behavior_start_time = stimulus_presentations.iloc[first_index].start_time
     spontaneous_start_time_pre = behavior_start_time - spont_duration
     spontaneous_end_time_pre = behavior_start_time
-    spontaneous_start_frame_pre = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_start_time_pre)
-    spontaneous_end_frame_pre = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_end_time_pre)
-    spontaneous_frames_pre = np.arange(spontaneous_start_frame_pre, spontaneous_end_frame_pre, 1)
+    spontaneous_start_frame_pre = mindscope_utilities.index_of_nearest_value(
+        ophys_timestamps, spontaneous_start_time_pre)
+    spontaneous_end_frame_pre = mindscope_utilities.index_of_nearest_value(
+        ophys_timestamps, spontaneous_end_time_pre)
+    spontaneous_frames_pre = np.arange(
+        spontaneous_start_frame_pre, spontaneous_end_frame_pre, 1)
 
-    # for spontaneous epoch at end of session, get 4 minutes of gray screen values after the last stimulus
+    # for spontaneous epoch at end of session, get 4 minutes of gray screen
+    # values after the last stimulus
     behavior_end_time = stimulus_presentations.iloc[-1].start_time
     spontaneous_start_time_post = behavior_end_time + 0.75
     spontaneous_end_time_post = spontaneous_start_time_post + spont_duration
-    spontaneous_start_frame_post = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_start_time_post)
-    spontaneous_end_frame_post = mindscope_utilities.index_of_nearest_value(ophys_timestamps, spontaneous_end_time_post)
-    spontaneous_frames_post = np.arange(spontaneous_start_frame_post, spontaneous_end_frame_post, 1)
+    spontaneous_start_frame_post = mindscope_utilities.index_of_nearest_value(
+        ophys_timestamps, spontaneous_start_time_post)
+    spontaneous_end_frame_post = mindscope_utilities.index_of_nearest_value(
+        ophys_timestamps, spontaneous_end_time_post)
+    spontaneous_frames_post = np.arange(
+        spontaneous_start_frame_post, spontaneous_end_frame_post, 1)
 
     if gray_screen_period_to_use == 'before':
         spontaneous_frames = spontaneous_frames_pre
     elif gray_screen_period_to_use == 'after':
         spontaneous_frames = spontaneous_frames_post
     elif gray_screen_period_to_use == 'both':
-        spontaneous_frames = np.concatenate([spontaneous_frames_pre, spontaneous_frames_post])
+        spontaneous_frames = np.concatenate(
+            [spontaneous_frames_pre, spontaneous_frames_post])
     return spontaneous_frames
 
 
-
 def get_p_value_from_shuffled_spontaneous(mean_responses,
-                                      stimulus_presentations,
-                                      ophys_timestamps,
-                                      traces_array,
-                                      response_window_duration,
-                                      ophys_frame_rate=None,
-                                      number_of_shuffles=10000):
+                                          stimulus_presentations,
+                                          ophys_timestamps,
+                                          traces_array,
+                                          response_window_duration,
+                                          ophys_frame_rate=None,
+                                          number_of_shuffles=10000):
     '''
     Args:
         mean_responses (array): Mean response values, shape (nConditions, nCells)
@@ -394,37 +431,56 @@ def get_p_value_from_shuffled_spontaneous(mean_responses,
 
     from mindscope_utilities.general_utilities import eventlocked_traces
 
-    spontaneous_frames = get_spontaneous_frames(stimulus_presentations, ophys_timestamps, gray_screen_period_to_use='before')
-    shuffled_spont_inds = np.random.choice(spontaneous_frames, number_of_shuffles)
+    spontaneous_frames = get_spontaneous_frames(
+        stimulus_presentations,
+        ophys_timestamps,
+        gray_screen_period_to_use='before')
+    shuffled_spont_inds = np.random.choice(
+        spontaneous_frames, number_of_shuffles)
 
     if ophys_frame_rate is None:
         ophys_frame_rate = 1 / np.diff(ophys_timestamps).mean()
 
-    trace_len = np.round(response_window_duration * ophys_frame_rate).astype(int)
+    trace_len = np.round(
+        response_window_duration *
+        ophys_frame_rate).astype(int)
     start_ind_offset = 0
     end_ind_offset = trace_len
-    # get an x frame segment of each cells trace after each shuffled spontaneous timepoint
-    spont_traces = eventlocked_traces(traces_array, shuffled_spont_inds, start_ind_offset, end_ind_offset)
+    # get an x frame segment of each cells trace after each shuffled
+    # spontaneous timepoint
+    spont_traces = eventlocked_traces(
+        traces_array,
+        shuffled_spont_inds,
+        start_ind_offset,
+        end_ind_offset)
     # average over the response window (x frames) for each shuffle,
-    spont_mean = spont_traces.mean(axis=0)  #Returns (nShuffles, nCells) - mean repsonse following each shuffled spont frame
+    # Returns (nShuffles, nCells) - mean repsonse following each shuffled
+    # spont frame
+    spont_mean = spont_traces.mean(axis=0)
 
     # Goal is to figure out how each response compares to the shuffled distribution, which is just
     # a searchsorted call if we first sort the shuffled.
-    spont_mean_sorted = np.sort(spont_mean, axis=0) # for each cell, sort the spontaneous mean values (axis0 is shuffles, axis1 is cells)
-    response_insertion_ind = np.empty(mean_responses.shape) # should be nConditions, nCells
-    # in cases where there is only 1 unique ID (i.e. one neuron in FOV, or one running or pupil trace), duplicate dims so the code below works
+    # for each cell, sort the spontaneous mean values (axis0 is shuffles,
+    # axis1 is cells)
+    spont_mean_sorted = np.sort(spont_mean, axis=0)
+    response_insertion_ind = np.empty(
+        mean_responses.shape)  # should be nConditions, nCells
+    # in cases where there is only 1 unique ID (i.e. one neuron in FOV, or one
+    # running or pupil trace), duplicate dims so the code below works
     if spont_mean_sorted.ndim == 1:
         spont_mean_sorted = np.expand_dims(spont_mean_sorted, axis=1)
-    # loop through indices and figure out how many times the mean response is greater than the spontaneous shuffles
+    # loop through indices and figure out how many times the mean response is
+    # greater than the spontaneous shuffles
     for ind_cell in range(mean_responses.shape[1]):
-        response_insertion_ind[:, ind_cell] = np.searchsorted(spont_mean_sorted[:, ind_cell],
-                                                              mean_responses[:, ind_cell])
+        response_insertion_ind[:, ind_cell] = np.searchsorted(
+            spont_mean_sorted[:, ind_cell], mean_responses[:, ind_cell])
     # p value is 1 over the fraction times that a given mean response is larger than the 10,000 shuffle means
     # response_insertion_ind tells the index that the mean response would have to be placed in to maintain the order of the shuffled spontaneous
     # if that number is 10k, the mean response is larger than all the shuffles
     # dividing response_insertion_index by 10k gives you the fraction of times that mean response was greater than the shuffles
     # then divide by 1 to get p-value
-    proportion_spont_larger_than_sample = 1 - (response_insertion_ind / number_of_shuffles)
+    proportion_spont_larger_than_sample = 1 - \
+        (response_insertion_ind / number_of_shuffles)
     p_values = proportion_spont_larger_than_sample
     # result = xr.DataArray(data=proportion_spont_larger_than_sample,
     #                       coords=mean_responses.coords)
@@ -497,10 +553,14 @@ def get_stimulus_response_df(ophys_experiment,
         **kwargs)
 
     # set up identifier columns depending on whether behavioral or neural data is being used
-    # if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or (data_type == 'lick_rate'):
-    if ('lick' in data_type) or ('pupil' in data_type) or ('running' in data_type):
-        # set up variables to handle only one timeseries per event instead of multiple cell_specimen_ids
-        unique_id_string = 'trace_id'  # create a column to take the place of 'cell_specimen_id'
+    # if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or
+    # (data_type == 'lick_rate'):
+    if ('lick' in data_type) or (
+            'pupil' in data_type) or ('running' in data_type):
+        # set up variables to handle only one timeseries per event instead of
+        # multiple cell_specimen_ids
+        # create a column to take the place of 'cell_specimen_id'
+        unique_id_string = 'trace_id'
     else:
         # all cell specimen ids in an ophys_experiment
         unique_id_string = 'cell_specimen_id'
@@ -513,7 +573,8 @@ def get_stimulus_response_df(ophys_experiment,
     stacked_baseline = mean_baseline.stack(
         multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
 
-    # get p_value for each stimulus response compared to a shuffled distribution of gray screen values
+    # get p_value for each stimulus response compared to a shuffled
+    # distribution of gray screen values
     p_vals_gray_screen = stimulus_response_xr['p_value_gray_screen']
     stacked_pval_gray_screen = p_vals_gray_screen.stack(
         multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
@@ -602,7 +663,12 @@ def add_rewards_to_stimulus_presentations(
     return stimulus_presentations
 
 
-def add_licks_to_stimulus_presentations(stimulus_presentations, licks, time_window=[0, 0.75]):
+def add_licks_to_stimulus_presentations(
+    stimulus_presentations,
+    licks,
+    time_window=[
+        0,
+        0.75]):
     '''
     Append a column to stimulus_presentations which
     contains the timestamps of licks that occur
@@ -657,7 +723,8 @@ def get_trace_average(trace, timestamps, start_time, stop_time):
     return values_this_range.mean()
 
 
-def add_mean_running_speed_to_stimulus_presentations(stimulus_presentations, running_speed, time_window=[0, 0.75]):
+def add_mean_running_speed_to_stimulus_presentations(
+        stimulus_presentations, running_speed, time_window=[0, 0.75]):
     '''
     Append a column to stimulus_presentations which contains
     the mean running speed in a range relative to
@@ -706,7 +773,13 @@ def add_mean_running_speed_to_stimulus_presentations(stimulus_presentations, run
     return stimulus_presentations
 
 
-def add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_tracking, column_to_use='pupil_area', time_window=[0, 0.75]):
+def add_mean_pupil_to_stimulus_presentations(
+    stimulus_presentations,
+    eye_tracking,
+    column_to_use='pupil_area',
+    time_window=[
+        0,
+        0.75]):
     '''
     Append a column to stimulus_presentations which contains
     the mean pupil area, diameter, or radius in a range relative to
@@ -729,7 +802,7 @@ def add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_trackin
     Example:
         # get visual behavior cache
         from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc  # noqa E501
-        cache_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_cache'
+        cache_dir = r'\\allen\\programs\braintv\\workgroups\nc-ophys\visual_behavior\\platform_paper_cache'
         cache = bpc.from_s3_cache(cache_dir=cache_dir)
 
         # load data for one experiment
@@ -743,8 +816,14 @@ def add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_trackin
         stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_tracking, column_to_use='pupil_area')  # noqa E501
     '''
 
-    eye_tracking = get_pupil_data(eye_tracking, interpolate_likely_blinks=True, normalize_to_gray_screen=True, zscore=False,
-                   interpolate_to_ophys=False, ophys_timestamps=None, stimulus_presentations=stimulus_presentations)
+    eye_tracking = get_pupil_data(
+        eye_tracking,
+        interpolate_likely_blinks=True,
+        normalize_to_gray_screen=True,
+        zscore=False,
+        interpolate_to_ophys=False,
+        ophys_timestamps=None,
+        stimulus_presentations=stimulus_presentations)
 
     eye_tracking_timeseries = eye_tracking[column_to_use].values
     mean_pupil_around_stimulus = stimulus_presentations.apply(
@@ -754,7 +833,8 @@ def add_mean_pupil_to_stimulus_presentations(stimulus_presentations, eye_trackin
             row["start_time"] + time_window[0],
             row["start_time"] + time_window[1],
         ), axis=1,)
-    stimulus_presentations["mean_"+column_to_use] = mean_pupil_around_stimulus
+    stimulus_presentations["mean_" +
+                           column_to_use] = mean_pupil_around_stimulus
     return stimulus_presentations
 
 
@@ -779,8 +859,8 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
     last_time = 0
     reward_rate_by_frame = []
     if 'reward_rate' not in trials:
-        trials['reward_rate'] = calculate_reward_rate(trials['response_latency'].values,
-                                                  trials['start_time'], window=.5)
+        trials['reward_rate'] = calculate_reward_rate(
+            trials['response_latency'].values, trials['start_time'], window=.5)
 
     trials = trials[trials['aborted'] == False]  # NOQA
     for change_time in trials.change_time.values:
@@ -798,7 +878,10 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
     return stimulus_presentations
 
 
-def add_epochs_to_stimulus_presentations(stimulus_presentations, time_column='start_time', epoch_duration_mins=10):
+def add_epochs_to_stimulus_presentations(
+        stimulus_presentations,
+        time_column='start_time',
+        epoch_duration_mins=10):
     """
     Add column called 'epoch' with values as an index for the epoch within a session, for a given epoch duration.
 
@@ -813,10 +896,11 @@ def add_epochs_to_stimulus_presentations(stimulus_presentations, time_column='st
     stimulus_presentations['epoch'] = None
     for i, time in enumerate(epoch_times):
         if i < len(epoch_times) - 1:
-            indices = stimulus_presentations[(stimulus_presentations[time_column] >= epoch_times[i]) &
-                                             (stimulus_presentations[time_column] < epoch_times[i + 1])].index.values
+            indices = stimulus_presentations[(stimulus_presentations[time_column] >= epoch_times[i]) & (
+                stimulus_presentations[time_column] < epoch_times[i + 1])].index.values
         else:
-            indices = stimulus_presentations[(stimulus_presentations[time_column] >= epoch_times[i])].index.values
+            indices = stimulus_presentations[(
+                stimulus_presentations[time_column] >= epoch_times[i])].index.values
         stimulus_presentations.at[indices, 'epoch'] = i
     return stimulus_presentations
 
@@ -827,7 +911,7 @@ def add_trials_id_to_stimulus_presentations(stimulus_presentations, trials):
     Each stimulus will have associated 'trials_id'.
     'trials_id' is determined by comparing 'start_time 'from stimulus_presentations and trials.
     'trials_id' is last trials_id with start_time <= stimulus_time.
-    
+
     :param: stimulus_presentations: stimulus_presentations attribute of BehaviorOphysExperiment object, must have 'start_time'
     :param trials: trials attribute of BehaviorOphysExperiment object, must have 'change_time'
     """
@@ -838,32 +922,49 @@ def add_trials_id_to_stimulus_presentations(stimulus_presentations, trials):
     for idx, row in stimulus_presentations.iterrows():
         # trials_id is last trials_id with start_time <= stimulus_time
         try:
-            trials_id = new_trials.loc[:row['start_time']].iloc[-1]['trials_id']
+            trials_id = new_trials.loc[:row['start_time']
+                                       ].iloc[-1]['trials_id']
         except IndexError:
             trials_id = -1
         stimulus_presentations.at[idx, 'trials_id'] = trials_id
     return stimulus_presentations
 
 
-def add_trials_data_to_stimulus_presentations_table(stimulus_presentations, trials):
+def add_trials_data_to_stimulus_presentations_table(
+        stimulus_presentations, trials):
     """
     Add trials_id to stimulus presentations table then join relevant columns of trials with stimulus_presentations
     :param: stimulus_presentations: stimulus_presentations attribute of BehaviorOphysExperiment object, must have 'start_time'
     :param trials: trials attribute of BehaviorOphysExperiment object, must have 'change_time'
     """
     # add trials_id and merge to get trial type information
-    stimulus_presentations = add_trials_id_to_stimulus_presentations(stimulus_presentations, trials)
+    stimulus_presentations = add_trials_id_to_stimulus_presentations(
+        stimulus_presentations, trials)
     # only keep certain columns
-    trials = trials[['change_time', 'go', 'catch', 'aborted', 'auto_rewarded',
-                    'hit', 'miss', 'false_alarm', 'correct_reject',
-                    'response_time', 'response_latency', 'reward_time', 'reward_volume', ]]
+    trials = trials[['change_time',
+                     'go',
+                     'catch',
+                     'aborted',
+                     'auto_rewarded',
+                     'hit',
+                     'miss',
+                     'false_alarm',
+                     'correct_reject',
+                     'response_time',
+                     'response_latency',
+                     'reward_time',
+                     'reward_volume',
+                     ]]
     # merge trials columns into stimulus_presentations
-    stimulus_presentations = stimulus_presentations.reset_index().merge(trials, on='trials_id', how='left')
-    stimulus_presentations = stimulus_presentations.set_index('stimulus_presentations_id')
+    stimulus_presentations = stimulus_presentations.reset_index().merge(
+        trials, on='trials_id', how='left')
+    stimulus_presentations = stimulus_presentations.set_index(
+        'stimulus_presentations_id')
     return stimulus_presentations
 
 
-def add_engagement_state_to_stimulus_presentations(stimulus_presentations, trials):
+def add_engagement_state_to_stimulus_presentations(
+        stimulus_presentations, trials):
     """
     Add 'engaged' Boolean column and 'engagement_state' string ('engaged' or 'disengaged'
     using threshold of  1/90 rewards per second (~2/3 rewards per minute).
@@ -874,22 +975,24 @@ def add_engagement_state_to_stimulus_presentations(stimulus_presentations, trial
     :return: stimulus_presentations with columns added: 'rewarded', 'reward_rate', 'reward_rate_per_second', 'engaged', 'engagement_state'
     """
     if 'reward_time' not in stimulus_presentations.keys():
-        stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, trials)
+        stimulus_presentations = add_trials_data_to_stimulus_presentations_table(
+            stimulus_presentations, trials)
 
     # create Boolean column indicating whether the trial was rewarded or not
-    stimulus_presentations['rewarded'] = [False if np.isnan(reward_time) else True for reward_time in stimulus_presentations.reward_time.values]
+    stimulus_presentations['rewarded'] = [False if np.isnan(
+        reward_time) else True for reward_time in stimulus_presentations.reward_time.values]
     # (rewards/stimulus)*(1 stimulus/.750s) = rewards/second
-    stimulus_presentations['reward_rate_per_second'] = stimulus_presentations['rewarded'].rolling(window=320,
-                                                                                                  min_periods=1,
-                                                                                                  win_type='triang').mean() / .75  # units of rewards per second
+    stimulus_presentations['reward_rate_per_second'] = stimulus_presentations['rewarded'].rolling(
+        window=320, min_periods=1, win_type='triang').mean() / .75  # units of rewards per second
     # (rewards/stimulus)*(1 stimulus/.750s)*(60s/min) = rewards/min
-    stimulus_presentations['reward_rate'] = stimulus_presentations['rewarded'].rolling(window=320, min_periods=1,
-                                                                                       win_type='triang').mean() * (
-                                            60 / .75)  # units of rewards/min
+    stimulus_presentations['reward_rate'] = stimulus_presentations['rewarded'].rolling(
+        window=320, min_periods=1, win_type='triang').mean() * (60 / .75)  # units of rewards/min
 
     reward_threshold = 2 / 3  # 2/3 rewards per minute = 1/90 rewards/second
-    stimulus_presentations['engaged'] = [x > reward_threshold for x in stimulus_presentations['reward_rate'].values]
-    stimulus_presentations['engagement_state'] = ['engaged' if engaged == True else 'disengaged' for engaged in stimulus_presentations['engaged'].values]
+    stimulus_presentations['engaged'] = [
+        x > reward_threshold for x in stimulus_presentations['reward_rate'].values]
+    stimulus_presentations['engagement_state'] = [
+        'engaged' if engaged else 'disengaged' for engaged in stimulus_presentations['engaged'].values]
 
     return stimulus_presentations
 
@@ -905,7 +1008,8 @@ def time_from_last(timestamps, event_times, side='right'):
         time_from_last_event (np.array): the time from the last event for each timestamp
 
     '''
-    last_event_index = np.searchsorted(a=event_times, v=timestamps, side=side) - 1
+    last_event_index = np.searchsorted(
+        a=event_times, v=timestamps, side=side) - 1
     time_from_last_event = timestamps - event_times[last_event_index]
     # flashes that happened before the other thing happened should return nan
     time_from_last_event[last_event_index == -1] = np.nan
@@ -913,7 +1017,8 @@ def time_from_last(timestamps, event_times, side='right'):
     return time_from_last_event
 
 
-def add_time_from_last_change_to_stimulus_presentations(stimulus_presentations):
+def add_time_from_last_change_to_stimulus_presentations(
+        stimulus_presentations):
     '''
     Adds a column to stimulus_presentations called 'time_from_last_change', which is the time, in seconds since the last image change
 
@@ -922,15 +1027,16 @@ def add_time_from_last_change_to_stimulus_presentations(stimulus_presentations):
     RETURNS: stimulus_presentations
     '''
     stimulus_times = stimulus_presentations["start_time"].values
-    change_times = stimulus_presentations.query('is_change')['start_time'].values
+    change_times = stimulus_presentations.query(
+        'is_change')['start_time'].values
     time_from_last_change = time_from_last(stimulus_times, change_times)
     stimulus_presentations["time_from_last_change"] = time_from_last_change
 
     return stimulus_presentations
 
 
-
-def get_annotated_stimulus_presentations(ophys_experiment, epoch_duration_mins=10):
+def get_annotated_stimulus_presentations(
+        ophys_experiment, epoch_duration_mins=10):
     """
     Takes in an ophys_experiment dataset object and returns the stimulus_presentations table with additional columns.
     Adds several useful columns to the stimulus_presentations table, including the mean running speed and pupil diameter for each stimulus,
@@ -943,45 +1049,58 @@ def get_annotated_stimulus_presentations(ophys_experiment, epoch_duration_mins=1
     :return: stimulus_presentations attribute of BehaviorOphysExperiment, with additional columns added
     """
     stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
-    stimulus_presentations = add_licks_to_stimulus_presentations(stimulus_presentations, ophys_experiment.licks,
-                                                                  time_window=[0, 0.75])
-    stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(stimulus_presentations,
-                                                                               ophys_experiment.running_speed,
-                                                                               time_window=[0, 0.75])
+    stimulus_presentations = add_licks_to_stimulus_presentations(
+        stimulus_presentations, ophys_experiment.licks, time_window=[0, 0.75])
+    stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(
+        stimulus_presentations, ophys_experiment.running_speed, time_window=[0, 0.75])
 
     if hasattr('ophys_experiment', 'eye_tracking'):
         try:
-            stimulus_presentations = add_mean_pupil_to_stimulus_presentations(stimulus_presentations,
-                                                                               ophys_experiment.eye_tracking,
-                                                                               column_to_use='pupil_width',
-                                                                               time_window=[0, 0.75])
+            stimulus_presentations = add_mean_pupil_to_stimulus_presentations(
+                stimulus_presentations,
+                ophys_experiment.eye_tracking,
+                column_to_use='pupil_width',
+                time_window=[
+                    0,
+                    0.75])
         except Exception as e:
-            print('could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(ophys_experiment.eye_tracking))
+            print(
+                'could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(
+                    ophys_experiment.eye_tracking))
             print(e)
-    stimulus_presentations = add_reward_rate_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials)
-    stimulus_presentations = add_epochs_to_stimulus_presentations(stimulus_presentations,
-                                                                   time_column='start_time',
-                                                                   epoch_duration_mins=epoch_duration_mins)
-    try: # not all session types have catch trials or omissions
-        stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, ophys_experiment.trials)
-         # add time from last change
-        stimulus_presentations = add_time_from_last_change_to_stimulus_presentations(stimulus_presentations)
+    stimulus_presentations = add_reward_rate_to_stimulus_presentations(
+        stimulus_presentations, ophys_experiment.trials)
+    stimulus_presentations = add_epochs_to_stimulus_presentations(
+        stimulus_presentations,
+        time_column='start_time',
+        epoch_duration_mins=epoch_duration_mins)
+    try:  # not all session types have catch trials or omissions
+        stimulus_presentations = add_trials_data_to_stimulus_presentations_table(
+            stimulus_presentations, ophys_experiment.trials)
+        # add time from last change
+        stimulus_presentations = add_time_from_last_change_to_stimulus_presentations(
+            stimulus_presentations)
         # add pre-change
-        stimulus_presentations['pre_change'] = stimulus_presentations['is_change'].shift(-1)
+        stimulus_presentations['pre_change'] = stimulus_presentations['is_change'].shift(
+            -1)
         # add licked Boolean
-        stimulus_presentations['licked'] = [True if len(licks) > 0 else False for licks in stimulus_presentations.licks.values]
-        stimulus_presentations['lick_on_next_flash'] = stimulus_presentations['licked'].shift(-1)
-        # add engagement state based on reward rate - note this reward rate is calculated differently than the SDK version
-        stimulus_presentations = add_engagement_state_to_stimulus_presentations(stimulus_presentations,
-                                                                                ophys_experiment.trials)
+        stimulus_presentations['licked'] = [True if len(
+            licks) > 0 else False for licks in stimulus_presentations.licks.values]
+        stimulus_presentations['lick_on_next_flash'] = stimulus_presentations['licked'].shift(
+            -1)
+        # add engagement state based on reward rate - note this reward rate is
+        # calculated differently than the SDK version
+        stimulus_presentations = add_engagement_state_to_stimulus_presentations(
+            stimulus_presentations, ophys_experiment.trials)
         # add omission annotation
-        stimulus_presentations['pre_omitted'] = stimulus_presentations['omitted'].shift(-1)
-        stimulus_presentations['post_omitted'] = stimulus_presentations['omitted'].shift(1)
+        stimulus_presentations['pre_omitted'] = stimulus_presentations['omitted'].shift(
+            -1)
+        stimulus_presentations['post_omitted'] = stimulus_presentations['omitted'].shift(
+            1)
     except Exception as e:
         print(e)
 
     return stimulus_presentations
-
 
 
 def annotate_stimuli(dataset, inplace=False):
@@ -1082,7 +1201,8 @@ def annotate_stimuli(dataset, inplace=False):
 
     # add previous_response_on_trial
     stimulus_presentations['previous_response_on_trial'] = False
-    # set 'stimulus_presentations_id' and 'trials_id' as indices to speed lookup
+    # set 'stimulus_presentations_id' and 'trials_id' as indices to speed
+    # lookup
     stimulus_presentations = stimulus_presentations.reset_index(
     ).set_index(['stimulus_presentations_id', 'trials_id'])
     for idx, row in stimulus_presentations.iterrows():
@@ -1100,15 +1220,21 @@ def annotate_stimuli(dataset, inplace=False):
     # add could_change
     stimulus_presentations['could_change'] = False
     for idx, row in stimulus_presentations.iterrows():
-        # check if we meet conditions where a change could occur on this stimulus (at least 4th flash of trial, no previous change on trial)
-        if row['trial_stimulus_index'] >= 4 and row['previous_response_on_trial'] is False and row['image_name'] != 'omitted' and row['previous_image_name'] != 'omitted':
+        # check if we meet conditions where a change could occur on this
+        # stimulus (at least 4th flash of trial, no previous change on trial)
+        if row['trial_stimulus_index'] >= 4 and row['previous_response_on_trial'] is False and row[
+                'image_name'] != 'omitted' and row['previous_image_name'] != 'omitted':
             stimulus_presentations.at[idx, 'could_change'] = True
 
     if inplace is False:
         return stimulus_presentations
 
 
-def calculate_response_matrix(stimuli, aggfunc=np.mean, sort_by_column=True, engaged_only=True):
+def calculate_response_matrix(
+        stimuli,
+        aggfunc=np.mean,
+        sort_by_column=True,
+        engaged_only=True):
     '''
     calculates the response matrix for each individual image pair in the `stimulus` dataframe
 
@@ -1187,7 +1313,10 @@ def calculate_dprime_matrix(stimuli, sort_by_column=True, engaged_only=True):
         assert 'engagement_state' in stimuli.columns, 'stimuli must have column called "engagement_state" if passing engaged_only = True'
 
     response_matrix = calculate_response_matrix(
-        stimuli, aggfunc=np.mean, sort_by_column=sort_by_column, engaged_only=engaged_only)
+        stimuli,
+        aggfunc=np.mean,
+        sort_by_column=sort_by_column,
+        engaged_only=engaged_only)
 
     d_prime_matrix = response_matrix.copy()
     for row in response_matrix.columns:
@@ -1227,13 +1356,20 @@ def get_licks_df(ophys_experiment):
     lick_array[licks.frame.values] = 1
     licks_df = pd.DataFrame(data=timestamps, columns=['timestamps'])
     licks_df['licks'] = lick_array
-    licks_df['lick_rate'] = licks_df['licks'].rolling(window=6, min_periods=1, win_type='triang').mean()
+    licks_df['lick_rate'] = licks_df['licks'].rolling(
+        window=6, min_periods=1, win_type='triang').mean()
 
     return licks_df
 
 
-def get_pupil_data(eye_tracking, interpolate_likely_blinks=False, normalize_to_gray_screen=False, zscore=False,
-                   interpolate_to_ophys=False, ophys_timestamps=None, stimulus_presentations=None):
+def get_pupil_data(
+        eye_tracking,
+        interpolate_likely_blinks=False,
+        normalize_to_gray_screen=False,
+        zscore=False,
+        interpolate_to_ophys=False,
+        ophys_timestamps=None,
+        stimulus_presentations=None):
     """
     removes 'likely_blinks' from all columns in eye_tracking and converts pupil_area to pupil_diameter and pupil_radius
     interpolates over NaNs resulting from removing likely_blinks if interpolate = true
@@ -1247,15 +1383,20 @@ def get_pupil_data(eye_tracking, interpolate_likely_blinks=False, normalize_to_g
     """
     import scipy
 
-    # set index to timestamps so they dont get overwritten by subsequent operations
+    # set index to timestamps so they dont get overwritten by subsequent
+    # operations
     eye_tracking = eye_tracking.set_index('timestamps')
 
     # compute pupil_diameter and pupil_radius from pupil_area
-    eye_tracking['pupil_diameter'] = np.sqrt(eye_tracking.pupil_area) / np.pi  # convert pupil area to pupil diameter
-    eye_tracking['pupil_radius'] = np.sqrt(eye_tracking['pupil_area'] * (1 / np.pi))  # convert pupil area to pupil radius
+    eye_tracking['pupil_diameter'] = np.sqrt(
+        eye_tracking.pupil_area) / np.pi  # convert pupil area to pupil diameter
+    eye_tracking['pupil_radius'] = np.sqrt(
+        eye_tracking['pupil_area'] * (1 / np.pi))  # convert pupil area to pupil radius
 
-    # set all timepoints that are likely blinks to NaN for all eye_tracking columns
-    if True in eye_tracking.likely_blink.unique(): # only can do this if there are likely blinks to filter out
+    # set all timepoints that are likely blinks to NaN for all eye_tracking
+    # columns
+    if True in eye_tracking.likely_blink.unique(
+    ):  # only can do this if there are likely blinks to filter out
         eye_tracking.loc[eye_tracking['likely_blink'], :] = np.nan
 
     # add timestamps column back in
@@ -1265,32 +1406,42 @@ def get_pupil_data(eye_tracking, interpolate_likely_blinks=False, normalize_to_g
     if interpolate_likely_blinks:
         eye_tracking = eye_tracking.interpolate()
 
-    # divide all columns by average of gray screen period prior to behavior session
+    # divide all columns by average of gray screen period prior to behavior
+    # session
     if normalize_to_gray_screen:
         assert stimulus_presentations is not None, 'must provide stimulus_presentations if normalize_to_gray_screen is True'
-        spontaneous_frames = get_spontaneous_frames(stimulus_presentations,
-                                                             eye_tracking.timestamps.values,
-                                                             gray_screen_period_to_use='before')
+        spontaneous_frames = get_spontaneous_frames(
+            stimulus_presentations,
+            eye_tracking.timestamps.values,
+            gray_screen_period_to_use='before')
         for column in eye_tracking.keys():
-            if (column != 'timestamps') and (column!='likely_blink'):
-                gray_screen_mean_value = np.nanmean(eye_tracking[column].values[spontaneous_frames])
-                eye_tracking[column] = eye_tracking[column] / gray_screen_mean_value
+            if (column != 'timestamps') and (column != 'likely_blink'):
+                gray_screen_mean_value = np.nanmean(
+                    eye_tracking[column].values[spontaneous_frames])
+                eye_tracking[column] = eye_tracking[column] / \
+                    gray_screen_mean_value
     # z-score pupil data
     if zscore:
         for column in eye_tracking.keys():
             if (column != 'timestamps') and (column != 'likely_blink'):
-                eye_tracking[column] = scipy.stats.zscore(eye_tracking[column], nan_policy='omit')
+                eye_tracking[column] = scipy.stats.zscore(
+                    eye_tracking[column], nan_policy='omit')
 
     # interpolate to ophys timestamps
     if interpolate_to_ophys:
         assert ophys_timestamps is not None, 'must provide ophys_timestamps if interpolate_to_ophys is True'
-        eye_tracking_ophys_time = pd.DataFrame({'timestamps': ophys_timestamps})
+        eye_tracking_ophys_time = pd.DataFrame(
+            {'timestamps': ophys_timestamps})
         for column in eye_tracking.keys():
             if (column != 'timestamps') and (column != 'likely_blink'):
-                f = scipy.interpolate.interp1d(eye_tracking['timestamps'], eye_tracking[column], bounds_error=False)
-                eye_tracking_ophys_time[column] = f(eye_tracking_ophys_time['timestamps'])
-                eye_tracking_ophys_time[column].fillna(method='ffill', inplace=True)
+                f = scipy.interpolate.interp1d(
+                    eye_tracking['timestamps'],
+                    eye_tracking[column],
+                    bounds_error=False)
+                eye_tracking_ophys_time[column] = f(
+                    eye_tracking_ophys_time['timestamps'])
+                eye_tracking_ophys_time[column].fillna(
+                    method='ffill', inplace=True)
         eye_tracking = eye_tracking_ophys_time
 
     return eye_tracking
-
