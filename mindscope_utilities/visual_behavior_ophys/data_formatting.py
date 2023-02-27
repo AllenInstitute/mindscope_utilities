@@ -78,6 +78,7 @@ def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
 def get_event_timestamps(
         stimulus_presentation,
         event_type='all',
+        image_order=0,
         onset='start_time'):
     '''
     Gets timestamps of events of interest from the stimulus_resentations df.
@@ -89,6 +90,9 @@ def get_event_timestamps(
     event_type: str
         Event of interest. Event_type can be any column in the stimulus_presentation,  # noqa E501
         including 'omissions' or 'change'. Default is 'all', gets all trials  # noqa E501
+    image_order: int
+        If event_type has 'n' in it, image_order is the index of the image presentation  # noqa E501
+        after change, omission, or both. Default is 0 (same as changes or omissions or both) # noqa E501
     onset: str
         optons: 'start_time' - onset of the stimulus, 'stop_time' - offset of the stimulus
         stimulus_presentationshas a multiple timestamps to align data to. Default = 'start_time'.
@@ -98,6 +102,9 @@ def get_event_timestamps(
         event_ids: array
     --------
     '''
+    if 'n_after_change' not in stimulus_presentation.columns:
+        stimulus_presentation = add_n_to_stimulus_presentations(stimulus_presentation)  # noqa E501
+
     if event_type == 'all':
         event_times = stimulus_presentation[onset]
         event_ids = stimulus_presentation.index.values
@@ -110,6 +117,33 @@ def get_event_timestamps(
     elif event_type == 'changes' or event_type == 'is_change':
         event_times = stimulus_presentation[stimulus_presentation['is_change']][onset]  # noqa E501
         event_ids = stimulus_presentation[stimulus_presentation['is_change']].index.values  # noqa E501
+    elif event_type == 'images-n-omissions':
+        condition = (stimulus_presentation['n_after_omission']==image_order) & \
+                    (stimulus_presentation['n_after_change'] > stimulus_presentation['n_after_omission'])  # noqa E501
+        event_times = stimulus_presentation[condition][onset]
+        event_ids = stimulus_presentation[condition].index.values
+    elif event_type == 'images-n-changes':
+        condition = (stimulus_presentation['n_after_change']==image_order) & \
+                    ((stimulus_presentation['n_after_omission'] > stimulus_presentation['n_after_change']) | # noqa E501  
+                     (stimulus_presentation['n_after_omission'] == -1))  # for trials without omission
+        event_times = stimulus_presentation[condition][onset]
+        event_ids = stimulus_presentation[condition].index.values
+    elif event_type == 'images>n-omissions':
+        condition = (stimulus_presentation['n_after_omission'] > image_order) & \
+                    (stimulus_presentation['n_after_change'] > stimulus_presentation['n_after_omission'])  # noqa E501
+        event_times = stimulus_presentation[condition][onset]
+        event_ids = stimulus_presentation[condition].index.values
+    elif event_type == 'images>n-changes':
+        condition = (stimulus_presentation['n_after_change'] > image_order) & \
+                    ((stimulus_presentation['n_after_omission'] > image_order) |  # noqa E501
+                     (stimulus_presentation['n_after_omission'] == -1))  # for trials without omission
+        event_times = stimulus_presentation[condition][onset]
+        event_ids = stimulus_presentation[condition].index.values
+    elif event_type == 'images-n-before-changes':
+        condition = (stimulus_presentation['n_before_change'] == image_order) & \
+                    (stimulus_presentation['n_after_omission'] == -1)  # Get trials without omission only
+        event_times = stimulus_presentation[condition][onset]
+        event_ids = stimulus_presentation[condition].index.values
     else:
         event_times = stimulus_presentation[stimulus_presentation[event_type]][onset]  # noqa E501
         event_ids = stimulus_presentation[stimulus_presentation[event_type]].index.values  # noqa E501
@@ -120,8 +154,10 @@ def get_event_timestamps(
 def get_stimulus_response_xr(ophys_experiment,
                              data_type='dff',
                              event_type='all',
+                             image_order=0,
                              time_window=[-3, 3],
                              response_window_duration=0.5,
+                             baseline_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
                              exclude_invalid_rois=True,
@@ -138,13 +174,25 @@ def get_stimulus_response_xr(ophys_experiment,
     event_type: str
         event type to align to, which can be found in columns of ophys_experiment.stimulus_presentations df.
         options are: 'all' (default) - gets all stimulus trials
-                     'images' - gets only image presentations (changes and not changes)
-                     'omissions' - gets only trials with omitted stimuli
-                     'changes' - get only trials of image changes
+                'images' - gets only image presentations (changes and not changes)
+                'omissions' - gets only trials with omitted stimuli
+                'changes' - get only trials of image changes
+                'images-n-omissions' - gets only n-th image presentations after omission
+                'images-n-changes' - gets only n-th image presentations after change (and omission > n if there is)
+                'images>n-omissions' - gets > n-th image presentations after omission
+                'images>n-changes' - gets > n-th image presentations after change (and omission > n if there is)
+                'images-n-before-changes' - gets only n-th image presentations before change (from trials without omission only)
+    image_order: int
+        corresponds to n if event_type has 'n' in it
+        starts at 0 (same as change or omission), default = 0
     time_window: array
         array of two int or floats indicating the time window on sliced data, default = [-3, 3]
     response_window_duration: float
-        time period, in seconds, relative to stimulus onset to compute the mean and baseline response
+        time period, in seconds, relative to stimulus onset to compute the mean response
+    baseline_window_duration: float
+        time period, in seconds, relative to stimulus onset to compute the baseline response
+        For slow GCaMP and dff traces, it is recommended to set the baseline_window_duration
+        shorter than the response_window_duration
     interpolate: bool
         type of alignment. If True (default) - interpolates neural data to align timestamps
         with stimulus presentations. If False - shifts data to the nearest timestamps
@@ -166,17 +214,18 @@ def get_stimulus_response_xr(ophys_experiment,
     Returns:
     __________
     stimulus_response_xr: xarray
-        Xarray of aligned neural data with multiple dimentions: cell_specimen_id,
+        Xarray of aligned neural data with multiple dimensions: cell_specimen_id,
         'eventlocked_timestamps', and 'stimulus_presentations_id'
 
     '''
 
     # load stimulus_presentations table
     stimulus_presentations = ophys_experiment.stimulus_presentations
+    stimulus_presentations = add_n_to_stimulus_presentations(stimulus_presentations)
 
     # get event times and event ids (original order in the stimulus flow)
     event_times, event_ids = get_event_timestamps(
-        stimulus_presentations, event_type)
+        stimulus_presentations, event_type, image_order=image_order)
 
     if ('running' in data_type) or (
             'pupil' in data_type) or ('lick' in data_type):
@@ -219,10 +268,6 @@ def get_stimulus_response_xr(ophys_experiment,
             exclude_invalid_rois=exclude_invalid_rois)
         # all cell specimen ids in an ophys_experiment
         unique_ids = np.unique(data['cell_specimen_id'].values)
-
-    # get native sampling rate if one is not provided
-    if output_sampling_rate is None:
-        output_sampling_rate = 1 / np.diff(data['timestamps']).mean()
 
     # collect aligned data
     sliced_dataout = []
@@ -273,13 +318,17 @@ def get_stimulus_response_xr(ophys_experiment,
     # baseline
     stimulus_response_xr = compute_means_xr(
         stimulus_response_xr,
-        response_window_duration=response_window_duration)
+        response_window_duration=response_window_duration,
+        baseline_window_duration=baseline_window_duration)
 
     # get mean response for each trial
     # input needs to be array of nConditions, nCells
     mean_responses = stimulus_response_xr.mean_response.data.T
 
     try:
+        # get native sampling rate if one is not provided
+        if output_sampling_rate is None:
+            output_sampling_rate = 1 / data.groupby('cell_specimen_id').apply(lambda x: np.diff(x.timestamps).mean()).mean()
         # compute significance of each trial, returns array of nConditions,
         # nCells
         p_value_gray_screen = get_p_value_from_shuffled_spontaneous(
@@ -309,7 +358,7 @@ def get_stimulus_response_xr(ophys_experiment,
     return stimulus_response_xr
 
 
-def compute_means_xr(stimulus_response_xr, response_window_duration=0.5):
+def compute_means_xr(stimulus_response_xr, response_window_duration=0.5, baseline_window_duration=0.2):
     '''
     Computes means of traces for stimulus response and pre-stimulus baseline.
     Response by default starts at 0, while baseline
@@ -322,8 +371,13 @@ def compute_means_xr(stimulus_response_xr, response_window_duration=0.5):
         with three main dimentions: cell_specimen_id,
         trail_id, and eventlocked_timestamps
     response_window_duration:
-        duration in seconds relative to stimulus onset to compute the mean and baseline responses
+        duration in seconds relative to stimulus onset to compute the mean responses
         in get_stimulus_response_xr
+    baseline_window_duration
+        duration in seconds relative to stimulus onset to compute the baseline responses
+        in get_stimulus_response_xr
+        For slow GCaMP and dff traces, it is recommended to set the baseline_window_duration
+        shorter than the response_window_duration
 
     Returns:
     _________
@@ -331,7 +385,7 @@ def compute_means_xr(stimulus_response_xr, response_window_duration=0.5):
         dimentions: mean_response and mean_baseline
     '''
     response_range = [0, response_window_duration]
-    baseline_range = [-response_window_duration, 0]
+    baseline_range = [-baseline_window_duration, 0]
 
     mean_response = stimulus_response_xr.loc[
         {'eventlocked_timestamps': slice(*response_range)}
@@ -488,8 +542,10 @@ def get_p_value_from_shuffled_spontaneous(mean_responses,
 def get_stimulus_response_df(ophys_experiment,
                              data_type='dff',
                              event_type='all',
+                             image_order=0,
                              time_window=[-3, 3],
                              response_window_duration=0.5,
+                             baseline_window_duration=0.5,
                              interpolate=True,
                              output_sampling_rate=None,
                              exclude_invalid_rois=True,
@@ -511,10 +567,22 @@ def get_stimulus_response_df(ophys_experiment,
                      'images' - gets only image presentations (changes and not changes)
                      'omissions' - gets only trials with omitted stimuli
                      'changes' - get only trials of image changes
+                     'images-n-omissions' - gets only n-th image presentations after omission
+                     'images-n-changes' - gets only n-th image presentations after change (and omission > n if there is)
+                     'images>n-omissions' - gets > n-th image presentations after omission
+                     'images>n-changes' - gets > n-th image presentations after change (and omission > n if there is)
+                     'images-n-before-changes' - gets only n-th image presentations before change (from trials without omission only)
+    image_order: int
+        corresponds to n if event_type has 'n' in it
+        starts at 0 (same as change or omission), default = 0
     time_window: array
         array of two int or floats indicating the time window on sliced data, default = [-3, 3]
     response_window_duration: float
-        time period, in seconds, relative to stimulus onset to compute the mean and baseline response
+        time period, in seconds, relative to stimulus onset to compute the mean response
+    baseline_window_duration: float
+        time period, in seconds, relative to stimulus onset to compute the baseline
+        For slow GCaMP and dff traces, it is recommended to set the baseline_window_duration
+        shorter than the response_window_duration
     interpolate: bool
         type of alignment. If True (default) - interpolates neural data to align timestamps
         with stimulus presentations. If False - shifts data to the nearest timestamps
@@ -543,8 +611,10 @@ def get_stimulus_response_df(ophys_experiment,
         ophys_experiment=ophys_experiment,
         data_type=data_type,
         event_type=event_type,
+        image_order=image_order,
         time_window=time_window,
         response_window_duration=response_window_duration,
+        baseline_window_duration=baseline_window_duration,
         interpolate=interpolate,
         output_sampling_rate=output_sampling_rate,
         exclude_invalid_rois=exclude_invalid_rois,
@@ -1032,6 +1102,61 @@ def add_time_from_last_change_to_stimulus_presentations(
     return stimulus_presentations
 
 
+def add_n_to_stimulus_presentations(stimulus_presentations):
+    """
+    Adds a column to stimulus_presentations called 'n_after_change',
+    which is the number of stimulus presentations that have occurred since the last change.
+    It will also add a column called 'n_after_omission',
+    which is the number of stimulus presentations that have occurred since the last omission,
+    before the next change.
+    If there is no omission, this value will be -1.
+    Presentations before the first change or omission will have a value of -1.
+    It will also add a column called 'n_before_change',
+    which is the number of stimulus presentations that have occurred before the next change.
+    Presentations after the last change will have a value of -1.
+    Presentations before the first change will also have a value of -1.
+
+    Parameters
+    ----------
+    stimulus_presentations : pd.DataFrame
+        stimulus_presentations table from BehaviorOphysExperiment
+
+    Returns
+    -------
+    stimulus_presentations : pd.DataFrame
+        stimulus_presentations table with 'n_after_change', 'n_after_omission', and 'n_before_change' columns added
+    """
+
+    change_ind = stimulus_presentations[stimulus_presentations['is_change']].index.values
+    n_after_change = np.zeros(len(stimulus_presentations)) - 1  # -1 indicates before the first change
+    for i in range(1, len(change_ind)):
+        n_after_change[change_ind[i - 1]: change_ind[i]] = np.arange(0, change_ind[i] - change_ind[i - 1]).astype(int)
+    n_after_change[change_ind[i]:] = np.arange(0, len(stimulus_presentations) - change_ind[i]).astype(int)
+    stimulus_presentations['n_after_change'] = n_after_change
+    n_before_change = np.zeros(len(stimulus_presentations)) - 1  # -1 indicates after the last and before the first change
+    for i in range(len(change_ind) - 1):
+        n_before_change[change_ind[i] + 1: change_ind[i + 1] + 1] = np.arange(change_ind[i + 1] - change_ind[i] - 1, -1, -1).astype(int)
+    stimulus_presentations['n_before_change'] = n_before_change
+
+    n_after_omission = np.zeros(len(stimulus_presentations)) - 1  # -1 indicates before the first omission or
+    # after the next change till the next omission
+    # if there are no omissions, n_after_omission will be all -1
+    # and 'omitted' will be added and assigned to False
+    if 'omitted' in stimulus_presentations.columns:
+        omission_ind = stimulus_presentations[stimulus_presentations['omitted']].index.values
+        for i in range(len(omission_ind)):
+            if change_ind[-1] > omission_ind[i]:
+                next_change_ind = change_ind[change_ind > omission_ind[i]][0]
+                n_after_omission[omission_ind[i]: next_change_ind] = np.arange(0, next_change_ind - omission_ind[i]).astype(int)
+            else:
+                n_after_omission[omission_ind[i]:] = np.arange(0, len(stimulus_presentations) - omission_ind[i]).astype(int)
+    else:
+        stimulus_presentations['omitted'] = False
+    stimulus_presentations['n_after_omission'] = n_after_omission
+    
+    return stimulus_presentations
+
+
 def get_annotated_stimulus_presentations(
         ophys_experiment, epoch_duration_mins=10):
     """
@@ -1071,6 +1196,7 @@ def get_annotated_stimulus_presentations(
         stimulus_presentations,
         time_column='start_time',
         epoch_duration_mins=epoch_duration_mins)
+    stimulus_presentations = add_n_to_stimulus_presentations(stimulus_presentations)
     try:  # not all session types have catch trials or omissions
         stimulus_presentations = add_trials_data_to_stimulus_presentations_table(
             stimulus_presentations, ophys_experiment.trials)
