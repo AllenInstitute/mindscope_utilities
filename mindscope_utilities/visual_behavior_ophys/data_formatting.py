@@ -968,7 +968,7 @@ def add_epochs_to_stimulus_presentations(
         else:
             indices = stimulus_presentations[(
                 stimulus_presentations[time_column] >= epoch_times[i])].index.values
-        stimulus_presentations.at[indices, 'epoch'] = i
+        stimulus_presentations.loc[indices, 'epoch'] = i
     return stimulus_presentations
 
 
