@@ -91,7 +91,7 @@ class SimulatedExperiment(object):
 
 @pytest.fixture
 def simulated_experiment_fixture():
-   # build a simulated experiment
+    # build a simulated experiment
     timestamps = np.arange(0, 1, 0.01)
     cell_specimen_ids = [1, 2, 3, 4]
     cell_roi_ids = [2 * csid for csid in cell_specimen_ids]
