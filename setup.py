@@ -10,7 +10,7 @@ setup(name='mindscope_utilities',
       author_email='marinag@alleninstitute.org, iryna.yavorska@alleninstitute.org, kater@alleninstitute.org, dougo@alleninstitute.org,',
       license='Allen Institute',
       install_requires=[
-          'flake8',
+          'flake8==3.9.2',
           'pytest',
           'allensdk==2.13.5',
       ],
