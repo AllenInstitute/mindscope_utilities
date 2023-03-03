@@ -1146,7 +1146,7 @@ def add_n_to_stimulus_presentations(stimulus_presentations):
 
     # Adding n_after_omission
     n_after_omission = np.zeros(len(stimulus_presentations)) - 1  # -1 indicates before the first omission or
-                                                                  # from the next change till the next omission
+                                                                  # from the next change till the next omission # noqa: E114, E116
     # if there are no omissions, n_after_omission will be all -1
     # and 'omitted' will be added and assigned to False
     if 'omitted' in stimulus_presentations.columns:
