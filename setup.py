@@ -12,7 +12,7 @@ setup(name='mindscope_utilities',
     install_requires=[
         'flake8',
         'pytest',
-        'allensdk',
+        'allensdk==2.13.5',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
