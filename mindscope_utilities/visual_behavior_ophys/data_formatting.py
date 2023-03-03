@@ -1115,6 +1115,8 @@ def add_n_to_stimulus_presentations(stimulus_presentations):
     which is the number of stimulus presentations that have occurred before the next change.
     Presentations after the last change will have a value of -1.
     Presentations before the first change will also have a value of -1.
+    0 for 'n_after_change' and 'n_before_change' indicates the change itself.
+    0 for 'n_after_omission' indicates the omission itself.
 
     Parameters
     ----------
@@ -1128,24 +1130,29 @@ def add_n_to_stimulus_presentations(stimulus_presentations):
     """
 
     change_ind = stimulus_presentations[stimulus_presentations['is_change']].index.values
+
+    # Adding n_after_change
     n_after_change = np.zeros(len(stimulus_presentations)) - 1  # -1 indicates before the first change
     for i in range(1, len(change_ind)):
         n_after_change[change_ind[i - 1]: change_ind[i]] = np.arange(0, change_ind[i] - change_ind[i - 1]).astype(int)
     n_after_change[change_ind[i]:] = np.arange(0, len(stimulus_presentations) - change_ind[i]).astype(int)
     stimulus_presentations['n_after_change'] = n_after_change
+
+    # Adding n_before_change
     n_before_change = np.zeros(len(stimulus_presentations)) - 1  # -1 indicates after the last and before the first change
     for i in range(len(change_ind) - 1):
         n_before_change[change_ind[i] + 1: change_ind[i + 1] + 1] = np.arange(change_ind[i + 1] - change_ind[i] - 1, -1, -1).astype(int)
     stimulus_presentations['n_before_change'] = n_before_change
 
+    # Adding n_after_omission
     n_after_omission = np.zeros(len(stimulus_presentations)) - 1  # -1 indicates before the first omission or
-    # after the next change till the next omission
+                                                                  # from the next change till the next omission
     # if there are no omissions, n_after_omission will be all -1
     # and 'omitted' will be added and assigned to False
     if 'omitted' in stimulus_presentations.columns:
         omission_ind = stimulus_presentations[stimulus_presentations['omitted']].index.values
         for i in range(len(omission_ind)):
-            if change_ind[-1] > omission_ind[i]:
+            if change_ind[-1] > omission_ind[i]:  # if there is a change after the omission
                 next_change_ind = change_ind[change_ind > omission_ind[i]][0]
                 n_after_omission[omission_ind[i]: next_change_ind] = np.arange(0, next_change_ind - omission_ind[i]).astype(int)
             else:
