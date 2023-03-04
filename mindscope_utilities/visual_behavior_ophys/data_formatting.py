@@ -929,10 +929,9 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
         trials['reward_rate'] = calculate_reward_rate(
             trials['response_latency'].values, trials['start_time'], window=.5)
 
-    trials = trials[trials['aborted'] == False]  # NOQA
+    trials = trials[trials['aborted'] == False]  # noqa E712
     for change_time in trials.change_time.values:
-        reward_rate = trials[trials.change_time ==  # NOQA
-                             change_time].reward_rate.values[0]
+        reward_rate = trials[trials.change_time == change_time].reward_rate.values[0]
         for start_time in stimulus_presentations.start_time:
             if (start_time < change_time) and (start_time > last_time):
                 reward_rate_by_frame.append(reward_rate)
@@ -1146,7 +1145,7 @@ def add_n_to_stimulus_presentations(stimulus_presentations):
 
     # Adding n_after_omission
     n_after_omission = np.zeros(len(stimulus_presentations)) - 1  # -1 indicates before the first omission or
-                                                                  # from the next change till the next omission # noqa: E114, E116
+                                                                  # from the next change till the next omission # noqa E114, E116
     # if there are no omissions, n_after_omission will be all -1
     # and 'omitted' will be added and assigned to False
     if 'omitted' in stimulus_presentations.columns:
