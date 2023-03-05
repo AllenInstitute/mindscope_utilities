@@ -1518,9 +1518,8 @@ def get_pupil_data(
 
     # compute pupil_diameter and pupil_radius from pupil_area
     eye_tracking['pupil_diameter'] = np.sqrt(
-        eye_tracking.pupil_area) / np.pi  # convert pupil area to pupil diameter
-    eye_tracking['pupil_radius'] = np.sqrt(
-        eye_tracking['pupil_area'] * (1 / np.pi))  # convert pupil area to pupil radius
+        eye_tracking.pupil_area / np.pi) * 2  # convert pupil area to pupil diameter
+    eye_tracking['pupil_radius'] = eye_tracking['pupil_diameter'] / 2  # convert pupil area to pupil radius
 
     # set all timepoints that are likely blinks to NaN for all eye_tracking
     # columns
