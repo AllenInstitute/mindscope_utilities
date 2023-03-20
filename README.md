@@ -1,3 +1,8 @@
+# Deprecation warning:
+mindscope_utilities is now a deprecated repo that will no longer be supported. It's functionality and many of it's individual functions have, and will continue to be moved over to the brain_observatory_utilities repo: 
+https://github.com/AllenInstitute/brain_observatory_utilities
+
+
 # mindscope_utilities
 Utilities for loading, manipulating and visualizing data from the Allen Institute Mindscope program.
 
@@ -48,4 +53,4 @@ pytest
 
 # Level of Support
 
-We are planning on occasional updating this tool with no fixed schedule. Community involvement is encouraged through both issues and pull requests.
+We are no longer supporting this repo. We are supporting the brain_observatory_utilities repo which provides much of the same functionality as this repo

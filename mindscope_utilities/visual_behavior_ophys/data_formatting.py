@@ -2,8 +2,15 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from tqdm import tqdm
+from warnings import warn
 import mindscope_utilities
 from allensdk.brain_observatory.behavior.trials_processing import calculate_reward_rate
+
+repo_depr_warn_str = "The mindscope_utilities repo is deprecated. Please use the brain_observatory_utilities instead."
+module_warn_str = "The {} module is deprecated. Please use {} in brain_observatory_utilities instead."
+
+warn(repo_depr_warn_str, DeprecationWarning, stacklevel=2)
+warn(module_warn_str.format("data_formatting", "datasets.behavior.data_formatting, or datasets.ophys.data_formatting"), DeprecationWarning, stacklevel=2)
 
 
 def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):

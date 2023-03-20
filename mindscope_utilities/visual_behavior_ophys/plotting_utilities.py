@@ -1,6 +1,13 @@
 import matplotlib.pyplot as plt
 from mindscope_utilities.visual_behavior_ophys import calculate_response_matrix, calculate_dprime_matrix
 
+from warnings import warn
+repo_depr_warn_str = "The mindscope_utilities repo is deprecated. Please use the brain_observatory_utilities instead."
+module_warn_str = "The {} module is deprecated. Please use {} in brain_observatory_utilities instead."
+
+warn(repo_depr_warn_str, DeprecationWarning, stacklevel=2)
+warn(module_warn_str.format("plotting_utilities", "plotting.ophys_plots, or plotting.plot_utils"), DeprecationWarning, stacklevel=2)
+
 
 def plot_response_matrix(stimulus_presentations, ax=None, vmin=0, vmax=1, cmap='viridis', cbar_ax=None):
     '''
