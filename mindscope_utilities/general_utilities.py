@@ -1,7 +1,13 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import norm
+from warnings import warn
 
+repo_depr_warn_str = "The mindscope_utilities repo is deprecated. Please use the brain_observatory_utilities instead."
+module_warn_str = "The {} module is deprecated. Please use {} in brain_observatory_utilities instead."
+
+warn(repo_depr_warn_str, DeprecationWarning, stacklevel=2)
+warn(module_warn_str.format("general_utilities", "general_utilities"), DeprecationWarning, stacklevel=2)
 
 def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_endpoint=True):  # NOQA E501
     '''
