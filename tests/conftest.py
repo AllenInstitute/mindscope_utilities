@@ -4,11 +4,12 @@ import numpy as np
 import pytest
 import os
 
+
 class SimulatedExperiment(object):
     '''
     A class to simulate an AllenSDK BehaviorOphysExperiment object
     for testing purposes
-    
+
     Parameters:
     -----------
     cell_specimen_ids : list of ints
@@ -28,11 +29,12 @@ class SimulatedExperiment(object):
     filtered_events : list of lists/arrays of floats
         filtered events measurements for every cell
         each sublist must be same length as timestamps
-        
+
     Returns:
     --------
     simulated AllenSDK BehaviorOphysExperiment object
     '''
+
     def __init__(self, cell_specimen_ids, cell_roi_ids, valid_rois, timestamps, dff, events, filtered_events):
 
         self.ophys_timestamps = np.array(timestamps)
@@ -55,7 +57,7 @@ class SimulatedExperiment(object):
             events,
             filtered_events
         )
-        
+
     def build_cell_specimen_table(self, cell_specimen_ids, cell_roi_ids, valid_rois):
         '''builds a cell_specimen_table dataframe'''
         cell_specimen_table = pd.DataFrame({
@@ -73,7 +75,7 @@ class SimulatedExperiment(object):
             'dff': dff
         })
         return dff_traces.set_index('cell_specimen_id')
-    
+
     def build_events(self, cell_specimen_ids, cell_roi_ids, events, filtered_events):
         '''builds an events dataframe'''
         events = pd.DataFrame({
@@ -89,20 +91,23 @@ class SimulatedExperiment(object):
 
 @pytest.fixture
 def simulated_experiment_fixture():
-   # build a simulated experiment
+    # build a simulated experiment
     timestamps = np.arange(0, 1, 0.01)
     cell_specimen_ids = [1, 2, 3, 4]
-    cell_roi_ids = [2*csid for csid in cell_specimen_ids]
+    cell_roi_ids = [2 * csid for csid in cell_specimen_ids]
     valid_rois = [True, True, True, False]
 
     simulated_experiment = SimulatedExperiment(
-        cell_specimen_ids = cell_specimen_ids,
-        cell_roi_ids = cell_roi_ids,
-        valid_rois = valid_rois,
-        timestamps = timestamps,
-        dff = [np.sin(2*np.pi*timestamps + ii*0.5*np.pi) for ii, cell in enumerate(cell_specimen_ids)],
-        events = [np.sin(4*np.pi*timestamps+ ii*0.5*np.pi) for ii, cell in enumerate(cell_specimen_ids)],
-        filtered_events = [np.cos(4*np.pi*timestamps+ ii*0.5*np.pi) for ii, cell in enumerate(cell_specimen_ids)]
+        cell_specimen_ids=cell_specimen_ids,
+        cell_roi_ids=cell_roi_ids,
+        valid_rois=valid_rois,
+        timestamps=timestamps,
+        dff=[np.sin(2 * np.pi * timestamps + ii * 0.5 * np.pi)
+             for ii, cell in enumerate(cell_specimen_ids)],
+        events=[np.sin(4 * np.pi * timestamps + ii * 0.5 * np.pi)
+                for ii, cell in enumerate(cell_specimen_ids)],
+        filtered_events=[np.cos(4 * np.pi * timestamps + ii * 0.5 * np.pi)
+                         for ii, cell in enumerate(cell_specimen_ids)]
     )
     return simulated_experiment
 
@@ -113,7 +118,7 @@ def visual_behavior_ophys_test_experiment():
     from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache
     top_level_path = os.path.dirname(__file__)
     for _ in range(2):
-            top_level_path = os.path.split(top_level_path)[0]
+        top_level_path = os.path.split(top_level_path)[0]
     cache_dir = os.path.join(top_level_path, '.nwb_cache')
     if not os.path.exists(cache_dir):
         os.mkdir(cache_dir)
