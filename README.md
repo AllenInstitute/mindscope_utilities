@@ -1,3 +1,8 @@
+# Deprecation warning:
+mindscope_utilities is now a deprecated repo that will no longer be supported. It's functionality and many of it's individual functions have, and will continue to be moved over to the brain_observatory_utilities repo: 
+https://github.com/AllenInstitute/brain_observatory_utilities
+
+
 # mindscope_utilities
 Utilities for loading, manipulating and visualizing data from the Allen Institute Mindscope program.
 
