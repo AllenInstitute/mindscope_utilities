@@ -53,4 +53,4 @@ pytest
 
 # Level of Support
 
-We are planning on occasional updating this tool with no fixed schedule. Community involvement is encouraged through both issues and pull requests.
+We are no longer supporting this repo. We are supporting the brain_observatory_utilities repo which provides much of the same functionality as this repo
