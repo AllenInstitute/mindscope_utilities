@@ -1500,13 +1500,21 @@ def get_pupil_data(
         ophys_timestamps=None,
         stimulus_presentations=None):
     """
-    removes 'likely_blinks' from all columns in eye_tracking and converts pupil_area to pupil_diameter and pupil_radius
-    interpolates over NaNs resulting from removing likely_blinks if interpolate = true
+    Takes eye_tracking attribute of AllenSDK BehaviorOphysExperiment objection and optionally 
+    removes 'likely_blinks' from all columns in dataframe,
+    interpolates over NaNs resulting from removing likely_blinks if interpolate = True,
+    normalizes to the 5 minute gray screen period at the beginning of each ophys session, 
+    z-scores the timeseries, and/or aligns to ophys timestamps
+
     :param eye_tracking: eye_tracking attribute of AllenSDK BehaviorOphysExperiment object
-    :param column_to_use: 'pupil_area', 'pupil_width', 'pupil_diameter', or 'pupil_radius'
-                            'pupil_area' and 'pupil_width' are existing columns of the eye_tracking table
-                            'pupil_diameter' and 'pupil_radius' are computed from 'pupil_area' column
-    :param interpolate: Boolean, whether or not to interpolate points where likely_blinks occured
+    :param interpolate_likely_blinks: Boolean, whether or not to interpolate points where likely_blinks occured
+    :param normalize_to_gray_screen: Boolean, whether or not to normalize eye_tracking values to the 5 minute gray screen period
+    :param zscore: Boolean, whether or not to z-score the eye tracking values
+    :param interpolate_to_ophys: Boolean, whether or not to interpolate eye tracking timestamps on to ophys timestamps
+    :param ophys_timestamps: ophys_timestamps attribute of AllenSDK BehaviorOphysExperiment object, required to interpolate to ophys
+    :param stimulus_presentations: stimulus_presentations attribute of AllenSDK BehaviorOphysExperiment object, 
+                                    required to normaliz to gray screen period
+
 
     :return:
     """
@@ -1516,9 +1524,9 @@ def get_pupil_data(
     # operations
     eye_tracking = eye_tracking.set_index('timestamps')
 
-    # compute pupil_diameter and pupil_radius from pupil_area
-    eye_tracking['pupil_radius'] = np.sqrt(eye_tracking.pupil_area / np.pi)  # convert pupil area to pupil radius
-    eye_tracking['pupil_diameter'] = eye_tracking['pupil_radius'] * 2  # convert pupil radius to pupil diameter
+
+    # add timestamps column in addition to index so it can be used as a column as well
+    eye_tracking['timestamps'] = eye_tracking.index.values
 
     # set all timepoints that are likely blinks to NaN for all eye_tracking
     # columns
@@ -1526,15 +1534,12 @@ def get_pupil_data(
     ):  # only can do this if there are likely blinks to filter out
         eye_tracking.loc[eye_tracking['likely_blink'], :] = np.nan
 
-    # add timestamps column back in
-    eye_tracking['timestamps'] = eye_tracking.index.values
-
     # interpolate over likely blinks, which are now NaNs
     if interpolate_likely_blinks:
         eye_tracking = eye_tracking.interpolate()
 
-    # divide all columns by average of gray screen period prior to behavior
-    # session
+
+    # divide all columns by average value during gray screen period prior to behavior session
     if normalize_to_gray_screen:
         assert stimulus_presentations is not None, 'must provide stimulus_presentations if normalize_to_gray_screen is True'
         spontaneous_frames = get_spontaneous_frames(
