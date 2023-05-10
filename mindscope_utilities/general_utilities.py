@@ -129,7 +129,7 @@ def slice_inds_and_offsets(data_timestamps, stim_timestamps, time_window, sampli
         [start_offset, end_offset] in seconds
     sampling_rate : float, optional, default=None
         Sampling rate of the datatrace.
-        If left as None, samplng rate is inferred from data_timestamps.
+        If left as None, sampling rate is inferred from data_timestamps.
 
     Returns:
     --------
@@ -320,11 +320,6 @@ def stim_triggered_response(data, t, y, stim_times, t_start=None, t_end=None, t_
     assert t_before is None or t_start is None, 'cannot pass both t_start and t_before'  # noqa: E501
     assert t_after is None or t_end is None, 'cannot pass both t_after and t_end'  # noqa: E501
 
-    if interpolate is False:
-        output_sampling_rate = None
-        # MG - commenting this out because it crashes my code when interpolate = False, even if output_sampling_rate = None
-        # assert output_sampling_rate is None, 'if interpolation = False, the sampling rate of the input timeseries will be used. Do not specify output_sampling_rate'  # NOQA E501
-
     # assign time values to t_start and t_end
     if t_start is None:
         t_start = -1 * t_before
@@ -352,6 +347,8 @@ def stim_triggered_response(data, t, y, stim_times, t_start=None, t_end=None, t_
     # ensure that t_end is greater than t_start
     assert t_end > t_start, 'must define t_end to be greater than t_start'
 
+    if interpolate is False:
+        output_sampling_rate = None
     if output_sampling_rate is None:
         # if sampling rate is None,
         # set it to be the mean sampling rate of the input data
@@ -397,12 +394,13 @@ def stim_triggered_response(data, t, y, stim_times, t_start=None, t_end=None, t_
     # if interpolate is False,
     # we will calculate a common timebase and
     # shift every response onto that timebase
+    # Also, sampling rate must be the same as in the input data
     else:
         stim_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(  # NOQA E501
             np.array(data[t]),
             np.array(stim_times),
             time_window=[t_start, t_end],
-            sampling_rate=None,
+            sampling_rate=output_sampling_rate,
             include_endpoint=True
         )
         all_inds = stim_indices + \

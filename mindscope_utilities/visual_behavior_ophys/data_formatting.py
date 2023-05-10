@@ -628,8 +628,6 @@ def get_stimulus_response_df(ophys_experiment,
         **kwargs)
 
     # set up identifier columns depending on whether behavioral or neural data is being used
-    # if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or
-    # (data_type == 'lick_rate'):
     if ('lick' in data_type) or (
             'pupil' in data_type) or ('running' in data_type):
         # set up variables to handle only one timeseries per stim instead of
@@ -1507,10 +1505,10 @@ def get_pupil_data(
         ophys_timestamps=None,
         stimulus_presentations=None):
     """
-    Takes eye_tracking attribute of AllenSDK BehaviorOphysExperiment objection and optionally 
+    Takes eye_tracking attribute of AllenSDK BehaviorOphysExperiment objection and optionally
     removes 'likely_blinks' from all columns in dataframe,
     interpolates over NaNs resulting from removing likely_blinks if interpolate = True,
-    normalizes to the 5 minute gray screen period at the beginning of each ophys session, 
+    normalizes to the 5 minute gray screen period at the beginning of each ophys session,
     z-scores the timeseries, and/or aligns to ophys timestamps
 
     :param eye_tracking: eye_tracking attribute of AllenSDK BehaviorOphysExperiment object
@@ -1519,7 +1517,7 @@ def get_pupil_data(
     :param zscore: Boolean, whether or not to z-score the eye tracking values
     :param interpolate_to_ophys: Boolean, whether or not to interpolate eye tracking timestamps on to ophys timestamps
     :param ophys_timestamps: ophys_timestamps attribute of AllenSDK BehaviorOphysExperiment object, required to interpolate to ophys
-    :param stimulus_presentations: stimulus_presentations attribute of AllenSDK BehaviorOphysExperiment object, 
+    :param stimulus_presentations: stimulus_presentations attribute of AllenSDK BehaviorOphysExperiment object,
                                     required to normaliz to gray screen period
 
 
@@ -1530,7 +1528,6 @@ def get_pupil_data(
     # set index to timestamps so they dont get overwritten by subsequent
     # operations
     eye_tracking = eye_tracking.set_index('timestamps')
-
 
     # add timestamps column in addition to index so it can be used as a column as well
     eye_tracking['timestamps'] = eye_tracking.index.values
@@ -1544,7 +1541,6 @@ def get_pupil_data(
     # interpolate over likely blinks, which are now NaNs
     if interpolate_likely_blinks:
         eye_tracking = eye_tracking.interpolate()
-
 
     # divide all columns by average value during gray screen period prior to behavior session
     if normalize_to_gray_screen:
