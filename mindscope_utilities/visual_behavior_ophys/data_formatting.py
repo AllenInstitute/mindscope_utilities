@@ -1159,7 +1159,7 @@ def add_n_to_stimulus_presentations(stimulus_presentations):
     else:
         stimulus_presentations['omitted'] = False
     stimulus_presentations['n_after_omission'] = n_after_omission
-    
+
     return stimulus_presentations
 
 

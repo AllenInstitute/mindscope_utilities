@@ -336,8 +336,8 @@ def stim_triggered_response(data, t, y, stim_times, t_start=None, t_end=None, t_
     # is list or array, turn into pd.Series
     elif type(stim_times) is list or type(stim_times) is np.ndarray:
         stim_times = pd.Series(data=stim_times,
-                                name='stim_times'
-                                )
+                               name='stim_times'
+                               )
         # name the index column "original_index"
         stim_times.index.name = 'original_index'
         original_index_column_name = stim_times.index.name
