@@ -121,10 +121,10 @@ def test_get_time_array_assertion_errors():
 
 def test_index_of_nearest_value():
     data_timestamps = np.arange(0, 1.2, 0.1)
-    event_timestamps = np.array([0.21, 1.01, 1.0499, 1.05, 1.099])
+    stim_timestamps = np.array([0.21, 1.01, 1.0499, 1.05, 1.099])
 
     calculated_indices = index_of_nearest_value(
-        data_timestamps, event_timestamps)
+        data_timestamps, stim_timestamps)
 
     expected_indices = np.array([2, 10, 10, 11, 11])
 
@@ -133,24 +133,24 @@ def test_index_of_nearest_value():
 
 def test_slice_inds_and_offsets():
     data_timestamps = np.arange(0, 6, 0.1)
-    event_timestamps = [1.01, 2.05, 3.1, 4.2, 5.21]
+    stim_timestamps = [1.01, 2.05, 3.1, 4.2, 5.21]
     time_window = [-0.5, 0.5]
-    event_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(
+    stim_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(
         data_timestamps,
-        event_timestamps,
+        stim_timestamps,
         time_window,
         sampling_rate=None,
         include_endpoint=True
     )
 
-    assert np.all(event_indices == np.array([10, 20, 31, 42, 52]))
+    assert np.all(stim_indices == np.array([10, 20, 31, 42, 52]))
     assert start_ind_offset == -5
     assert end_ind_offset == 6
     assert np.all(trace_timebase == np.array(
         [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]))
 
 
-def test_event_triggered_response():
+def test_stim_triggered_response():
     # make a time vector from -10 to 110
     t = np.arange(-10, 110, 0.01)
 
@@ -162,12 +162,12 @@ def test_event_triggered_response():
     })
     df_copy = df.copy(deep=True)
 
-    # Make an event triggered response
-    etr = event_triggered_response(
+    # Make an stim triggered response
+    etr = stim_triggered_response(
         data=df,
         t='time',
         y='sinusoid',
-        event_times=np.arange(100),
+        stim_times=np.arange(100),
         t_before=1,
         t_after=1,
         output_sampling_rate=100,
