@@ -115,16 +115,16 @@ def get_time_array(t_start, t_end, sampling_rate=None, step_size=None, include_e
     return t_array
 
 
-def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampling_rate=None, include_endpoint=False):  # NOQA E501
+def slice_inds_and_offsets(data_timestamps, stim_timestamps, time_window, sampling_rate=None, include_endpoint=False):  # NOQA E501
     '''
-    Get nearest indices to event timestamps, plus ind offsets (start:stop)
-    for slicing out a window around the event from the trace.
+    Get nearest indices to stim timestamps, plus ind offsets (start:stop)
+    for slicing out a window around the stim from the trace.
     Parameters:
     -----------
     data_timestamps : np.array
         Timestamps of the datatrace.
-    event_timestamps : np.array
-        Timestamps of events around which to slice windows.
+    stim_timestamps : np.array
+        Timestamps of stims around which to slice windows.
     time_window : list
         [start_offset, end_offset] in seconds
     sampling_rate : float, optional, default=None
@@ -133,8 +133,8 @@ def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampl
 
     Returns:
     --------
-    event_indices : np.array
-        Indices of events from the timestamps provided.
+    stim_indices : np.array
+        Indices of stims from the timestamps provided.
     start_ind_offset : int
     end_ind_offset : int
     trace_timebase :  np.array
@@ -142,70 +142,70 @@ def slice_inds_and_offsets(data_timestamps, event_timestamps, time_window, sampl
     if sampling_rate is None:
         sampling_rate = 1 / np.diff(data_timestamps).mean()
 
-    event_indices = index_of_nearest_value(data_timestamps, event_timestamps)
+    stim_indices = index_of_nearest_value(data_timestamps, stim_timestamps)
     trace_len = (time_window[1] - time_window[0]) * sampling_rate
     start_ind_offset = int(time_window[0] * sampling_rate)
     end_ind_offset = int(start_ind_offset + trace_len) + int(include_endpoint)
     trace_timebase = np.arange(
         start_ind_offset, end_ind_offset) / sampling_rate
 
-    return event_indices, start_ind_offset, end_ind_offset, trace_timebase
+    return stim_indices, start_ind_offset, end_ind_offset, trace_timebase
 
 
-def index_of_nearest_value(data_timestamps, event_timestamps):
+def index_of_nearest_value(data_timestamps, stim_timestamps):
     '''
-    The index of the nearest sample time for each event time.
+    The index of the nearest sample time for each stim time.
 
     Parameters:
     -----------
     sample_timestamps : np.ndarray of floats
         sorted 1-d vector of data sample timestamps.
-    event_timestamps : np.ndarray of floats
-        1-d vector of event timestamps.
+    stim_timestamps : np.ndarray of floats
+        1-d vector of stim timestamps.
 
     Returns:
     --------
-    event_aligned_ind : np.ndarray of int
-        An array of nearest sample time index for each event times.
+    stim_aligned_ind : np.ndarray of int
+        An array of nearest sample time index for each stim times.
     '''
-    insertion_ind = np.searchsorted(data_timestamps, event_timestamps)
+    insertion_ind = np.searchsorted(data_timestamps, stim_timestamps)
     # is the value closer to data at insertion_ind or insertion_ind-1?
-    ind_diff = data_timestamps[insertion_ind] - event_timestamps
+    ind_diff = data_timestamps[insertion_ind] - stim_timestamps
     ind_minus_one_diff = np.abs(data_timestamps[np.clip(
-        insertion_ind - 1, 0, np.inf).astype(int)] - event_timestamps)
+        insertion_ind - 1, 0, np.inf).astype(int)] - stim_timestamps)
 
-    event_indices = insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
-    return event_indices
+    stim_indices = insertion_ind - (ind_diff > ind_minus_one_diff).astype(int)
+    return stim_indices
 
 
-def eventlocked_traces(traces_array, event_indices, start_ind_offset, end_ind_offset):
+def stimlocked_traces(traces_array, stim_indices, start_ind_offset, end_ind_offset):
     '''
-    Extract trace for each cell, for each event-relative window.
+    Extract trace for each cell, for each stim-relative window.
     Args:
         traces_array (np.ndarray): shape (nSamples, nCells) with timeseries for each cell
-        event_indices (np.ndarray): 1-d array of shape (nEvents) with closest sample ind for each event
-        start_ind_offset (int): Where to start the window relative to each event ind
-        end_ind_offset (int): Where to end the window relative to each event ind
+        stim_indices (np.ndarray): 1-d array of shape (nStims) with closest sample ind for each stim
+        start_ind_offset (int): Where to start the window relative to each stim ind
+        end_ind_offset (int): Where to end the window relative to each stim ind
     Returns:
-        sliced_dataout (np.ndarray): shape (nSamples, nEvents, nCells)
+        sliced_dataout (np.ndarray): shape (nSamples, nStims, nCells)
     '''
-    all_inds = event_indices + np.arange(start_ind_offset, end_ind_offset)[:, None]  # takes a slice around all event_indices
+    all_inds = stim_indices + np.arange(start_ind_offset, end_ind_offset)[:, None]  # takes a slice around all stim_indices
     sliced_dataout = traces_array.T[all_inds]
     return sliced_dataout
 
 
-def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, t_before=None, t_after=None,
+def stim_triggered_response(data, t, y, stim_times, t_start=None, t_end=None, t_before=None, t_after=None,
                              output_sampling_rate=None, include_endpoint=True, output_format='tidy', interpolate=True):  # NOQA E501
     '''
-    Slices a timeseries relative to a given set of event times
-    to build an event-triggered response.
+    Slices a timeseries relative to a given set of stim times
+    to build an stim-triggered response.
 
     For example, If we have data such as a measurement of neural activity
-    over time and specific events in time that we want to align
+    over time and specific stims in time that we want to align
     the neural activity to, this function will extract segments of the neural
-    timeseries in a specified time window around each event.
+    timeseries in a specified time window around each stim.
 
-    The times of the events need not align with the measured
+    The times of the stims need not align with the measured
     times of the neural data.
     Relative times will be calculated by linear interpolation.
 
@@ -219,29 +219,29 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         Name of column in data to use as time data
     y : string
         Name of column to use as y data
-    event_times: Panda.Series, numpy array or list of floats
-        Times of events of interest. If pd.Series, the original index and index name will be preserved in the output
+    stim_times: Panda.Series, numpy array or list of floats
+        Times of stims of interest. If pd.Series, the original index and index name will be preserved in the output
         Values in column specified by `y` will be sliced and interpolated
             relative to these times
     t_start : float
-        start time relative to each event for desired time window
+        start time relative to each stim for desired time window
         e.g.:   t_start = -1 would start the window 1 second before each
-                t_start = 1 would start the window 1 second after each event
+                t_start = 1 would start the window 1 second after each stim
         Note: cannot pass both t_start and t_before
     t_before : float
-        time before each of event of interest to include in each slice
-        e.g.:   t_before = 1 would start the window 1 second before each event
-                t_before = -1 would start the window 1 second after each event
+        time before each of stim of interest to include in each slice
+        e.g.:   t_before = 1 would start the window 1 second before each stim
+                t_before = -1 would start the window 1 second after each stim
         Note: cannot pass both t_start and t_before
     t_end : float
-        end time relative to each event for desired time window
-        e.g.:   t_end = 1 would end the window 1 second after each event
-                t_end = -1 would end the window 1 second before each event
+        end time relative to each stim for desired time window
+        e.g.:   t_end = 1 would end the window 1 second after each stim
+                t_end = -1 would end the window 1 second before each stim
         Note: cannot pass both t_end and t_after
     t_after : float
-        time after each event of interest to include in each slice
-        e.g.:   t_after = 1 would start the window 1 second after each event
-                t_after = -1 would start the window 1 second before each event
+        time after each stim of interest to include in each slice
+        e.g.:   t_after = 1 would start the window 1 second after each stim
+                t_after = -1 would start the window 1 second before each stim
         Note: cannot pass both t_end and t_after
     output_sampling_rate : float
         Desired sampling of output.
@@ -256,14 +256,14 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         'wide' or 'tidy' (default = 'tidy')
         if 'tidy'
             One column representing time
-            One column representing event_number
-            One column representing event_time
-            One row per observation (# rows = len(time) x len(event_times))
+            One column representing stim_number
+            One column representing stim_time
+            One row per observation (# rows = len(time) x len(stim_times))
         if 'wide', output format will be:
             time as indices
             One row per interpolated timepoint
-            One column per event,
-                with column names titled event_{EVENT NUMBER}_t={EVENT TIME}
+            One column per stim,
+                with column names titled stim_{stim NUMBER}_t={stim TIME}
     interpolate : Boolean
         if True (default), interpolates each response onto a common timebase
         if False, shifts each response to align indices to a common timebase
@@ -287,16 +287,16 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
             'noisy_sinusoid': np.sin(2*np.pi*t) + np.random.randn(len(t))*3
         })
 
-    Now use the event_triggered_response function to get a tidy
-    dataframe of the signal around every event
+    Now use the stim_triggered_response function to get a tidy
+    dataframe of the signal around every stim
 
-    Events will simply be generated as every 1 second interval
+    stims will simply be generated as every 1 second interval
     starting at 0, since our period here is 1
-    >>> etr = event_triggered_response(
+    >>> etr = stim_triggered_response(
             data,
             x = 'time',
             y = 'noisy_sinusoid',
-            event_times = np.arange(100),
+            stim_times = np.arange(100),
             t_start = -1,
             t_end = 1,
             output_sampling_rate = 100
@@ -332,22 +332,22 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         t_end = t_after
 
     # get original stimulus_presentation_ids, preserve the column for .join() method
-    if type(event_times) is pd.Series:  # if pd.Series, preserve the name of index column
-        original_index = event_times.index.values
-        if type(event_times.index.name) is str:
-            original_index_column_name = event_times.index.name
+    if type(stim_times) is pd.Series:  # if pd.Series, preserve the name of index column
+        original_index = stim_times.index.values
+        if type(stim_times.index.name) is str:
+            original_index_column_name = stim_times.index.name
         else:  # if index column does not have a name, name is original_index
-            event_times.index.name = 'original_index'
-            original_index_column_name = event_times.index.name
+            stim_times.index.name = 'original_index'
+            original_index_column_name = stim_times.index.name
     # is list or array, turn into pd.Series
-    elif type(event_times) is list or type(event_times) is np.ndarray:
-        event_times = pd.Series(data=event_times,
-                                name='event_times'
-                                )
+    elif type(stim_times) is list or type(stim_times) is np.ndarray:
+        stim_times = pd.Series(data=stim_times,
+                               name='stim_times'
+                               )
         # name the index column "original_index"
-        event_times.index.name = 'original_index'
-        original_index_column_name = event_times.index.name
-        original_index = event_times.index.values
+        stim_times.index.name = 'original_index'
+        original_index_column_name = stim_times.index.name
+        original_index = stim_times.index.values
 
     # ensure that t_end is greater than t_start
     assert t_end > t_start, 'must define t_end to be greater than t_start'
@@ -370,23 +370,23 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         )
         data_dict = {'time': t_array}
 
-        # iterate over all event times
+        # iterate over all stim times
         data_reindexed = data.set_index(t, inplace=False)
 
-        for event_number, event_time in enumerate(np.array(event_times)):
+        for stim_number, stim_time in enumerate(np.array(stim_times)):
 
-            # get a slice of the input data surrounding each event time
-            data_slice = data_reindexed[y].loc[event_time + t_start: event_time + t_end]  # noqa: E501
+            # get a slice of the input data surrounding each stim time
+            data_slice = data_reindexed[y].loc[stim_time + t_start: stim_time + t_end]  # noqa: E501
 
             # update our dictionary to have a new key defined as
-            # 'event_{EVENT NUMBER}_t={EVENT TIME}' and
+            # 'stim_{stim NUMBER}_t={stim TIME}' and
             # a value that includes an array that represents the
-            # sliced data around the current event, interpolated
+            # sliced data around the current stim, interpolated
             # on the linearly spaced time array
             data_dict.update({
-                'event_{}_t={}'.format(event_number, event_time): np.interp(
+                'stim_{}_t={}'.format(stim_number, stim_time): np.interp(
                     data_dict['time'],
-                    data_slice.index - event_time,
+                    data_slice.index - stim_time,
                     data_slice.values
                 )
             })
@@ -398,19 +398,19 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
     # we will calculate a common timebase and
     # shift every response onto that timebase
     else:
-        event_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(  # NOQA E501
+        stim_indices, start_ind_offset, end_ind_offset, trace_timebase = slice_inds_and_offsets(  # NOQA E501
             np.array(data[t]),
-            np.array(event_times),
+            np.array(stim_times),
             time_window=[t_start, t_end],
             sampling_rate=None,
             include_endpoint=True
         )
-        all_inds = event_indices + \
+        all_inds = stim_indices + \
             np.arange(start_ind_offset, end_ind_offset)[:, None]
         wide_etr = pd.DataFrame(
             data[y].values.T[all_inds],
             index=trace_timebase,
-            columns=['event_{}_t={}'.format(event_index, event_time) for event_index, event_time in enumerate(event_times)]  # NOQA E501
+            columns=['stim_{}_t={}'.format(stim_index, stim_time) for stim_index, stim_time in enumerate(stim_times)]  # NOQA E501
         ).rename_axis(index='time').reset_index()
 
     if output_format == 'wide':
@@ -422,16 +422,16 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
         # first, melt the dataframe with the 'id_vars' column as "time"
         tidy_etr = wide_etr.melt(id_vars='time')
 
-        # add an "event_number" column that contains the event number
-        tidy_etr['event_number'] = tidy_etr['variable'].map(
-            lambda s: s.split('event_')[1].split('_')[0]
+        # add an "stim_number" column that contains the stim number
+        tidy_etr['stim_number'] = tidy_etr['variable'].map(
+            lambda s: s.split('stim_')[1].split('_')[0]
         ).astype(int)
 
-        tidy_etr[original_index_column_name] = tidy_etr['event_number'].apply(
+        tidy_etr[original_index_column_name] = tidy_etr['stim_number'].apply(
             lambda row: original_index[row])
 
-        # add an "event_time" column that contains the event time ()
-        tidy_etr['event_time'] = tidy_etr['variable'].map(
+        # add an "stim_time" column that contains the stim time ()
+        tidy_etr['stim_time'] = tidy_etr['variable'].map(
             lambda s: s.split('t=')[1]
         ).astype(float)
 
@@ -441,7 +441,7 @@ def event_triggered_response(data, t, y, event_times, t_start=None, t_end=None, 
             .drop(columns=['variable'])
             .rename(columns={'value': y})
         )
-        # return the tidy event triggered responses
+        # return the tidy stim triggered responses
         return tidy_etr
 
 
