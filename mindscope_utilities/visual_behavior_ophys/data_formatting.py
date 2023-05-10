@@ -628,8 +628,6 @@ def get_stimulus_response_df(ophys_experiment,
         **kwargs)
 
     # set up identifier columns depending on whether behavioral or neural data is being used
-    # if (data_type == 'running_speed') or (data_type == 'pupil_diameter') or
-    # (data_type == 'lick_rate'):
     if ('lick' in data_type) or (
             'pupil' in data_type) or ('running' in data_type):
         # set up variables to handle only one timeseries per stim instead of
