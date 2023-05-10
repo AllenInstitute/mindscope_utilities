@@ -75,85 +75,85 @@ def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
     return tidy_df
 
 
-def get_event_timestamps(
+def get_stim_timestamps(
         stimulus_presentation,
-        event_type='all',
+        stim_type='all',
         image_order=0,
         onset='start_time'):
     '''
-    Gets timestamps of events of interest from the stimulus_resentations df.
+    Gets timestamps of stimuli of interest from the stimulus_resentations df.
 
     Parameters:
     ___________
     stimulus_presentation: Pandas.DataFrame
         Output of stimulus_presentations with stimulus trial metadata
-    event_type: str
-        Event of interest. Event_type can be any column in the stimulus_presentation,  # noqa E501
+    stim_type: str
+        stimulus of interest. stim_type can be any column in the stimulus_presentation,  # noqa E501
         including 'omissions' or 'change'. Default is 'all', gets all trials  # noqa E501
     image_order: int
-        If event_type has 'n' in it, image_order is the index of the image presentation  # noqa E501
+        If stim_type has 'n' in it, image_order is the index of the image presentation  # noqa E501
         after change, omission, or both. Default is 0 (same as changes or omissions or both) # noqa E501
     onset: str
         optons: 'start_time' - onset of the stimulus, 'stop_time' - offset of the stimulus
         stimulus_presentationshas a multiple timestamps to align data to. Default = 'start_time'.
 
     Returns:
-        event_times: array
-        event_ids: array
+        stim_times: array
+        stim_ids: array
     --------
     '''
     if 'n_after_change' not in stimulus_presentation.columns:
         stimulus_presentation = add_n_to_stimulus_presentations(stimulus_presentation)  # noqa E501
 
-    if event_type == 'all':
-        event_times = stimulus_presentation[onset]
-        event_ids = stimulus_presentation.index.values
-    elif event_type == 'images':
-        event_times = stimulus_presentation[stimulus_presentation['omitted'] == False][onset]  # noqa E501
-        event_ids = stimulus_presentation[stimulus_presentation['omitted'] == False].index.values  # noqa E501
-    elif event_type == 'omissions' or event_type == 'omitted':
-        event_times = stimulus_presentation[stimulus_presentation['omitted']][onset]  # noqa E501
-        event_ids = stimulus_presentation[stimulus_presentation['omitted']].index.values  # noqa E501
-    elif event_type == 'changes' or event_type == 'is_change':
-        event_times = stimulus_presentation[stimulus_presentation['is_change']][onset]  # noqa E501
-        event_ids = stimulus_presentation[stimulus_presentation['is_change']].index.values  # noqa E501
-    elif event_type == 'images-n-omissions':
+    if stim_type == 'all':
+        stim_times = stimulus_presentation[onset]
+        stim_ids = stimulus_presentation.index.values
+    elif stim_type == 'images':
+        stim_times = stimulus_presentation[stimulus_presentation['omitted'] == False][onset]  # noqa E501
+        stim_ids = stimulus_presentation[stimulus_presentation['omitted'] == False].index.values  # noqa E501
+    elif stim_type == 'omissions' or stim_type == 'omitted':
+        stim_times = stimulus_presentation[stimulus_presentation['omitted']][onset]  # noqa E501
+        stim_ids = stimulus_presentation[stimulus_presentation['omitted']].index.values  # noqa E501
+    elif stim_type == 'changes' or stim_type == 'is_change':
+        stim_times = stimulus_presentation[stimulus_presentation['is_change']][onset]  # noqa E501
+        stim_ids = stimulus_presentation[stimulus_presentation['is_change']].index.values  # noqa E501
+    elif stim_type == 'images-n-omissions':
         condition = (stimulus_presentation['n_after_omission']==image_order) & \
                     (stimulus_presentation['n_after_change'] > stimulus_presentation['n_after_omission'])  # noqa E501
-        event_times = stimulus_presentation[condition][onset]
-        event_ids = stimulus_presentation[condition].index.values
-    elif event_type == 'images-n-changes':
+        stim_times = stimulus_presentation[condition][onset]
+        stim_ids = stimulus_presentation[condition].index.values
+    elif stim_type == 'images-n-changes':
         condition = (stimulus_presentation['n_after_change']==image_order) & \
                     ((stimulus_presentation['n_after_omission'] > stimulus_presentation['n_after_change']) | # noqa E501  
                      (stimulus_presentation['n_after_omission'] == -1))  # for trials without omission
-        event_times = stimulus_presentation[condition][onset]
-        event_ids = stimulus_presentation[condition].index.values
-    elif event_type == 'images>n-omissions':
+        stim_times = stimulus_presentation[condition][onset]
+        stim_ids = stimulus_presentation[condition].index.values
+    elif stim_type == 'images>n-omissions':
         condition = (stimulus_presentation['n_after_omission'] > image_order) & \
                     (stimulus_presentation['n_after_change'] > stimulus_presentation['n_after_omission'])  # noqa E501
-        event_times = stimulus_presentation[condition][onset]
-        event_ids = stimulus_presentation[condition].index.values
-    elif event_type == 'images>n-changes':
+        stim_times = stimulus_presentation[condition][onset]
+        stim_ids = stimulus_presentation[condition].index.values
+    elif stim_type == 'images>n-changes':
         condition = (stimulus_presentation['n_after_change'] > image_order) & \
                     ((stimulus_presentation['n_after_omission'] > image_order) |  # noqa E501
                      (stimulus_presentation['n_after_omission'] == -1))  # for trials without omission
-        event_times = stimulus_presentation[condition][onset]
-        event_ids = stimulus_presentation[condition].index.values
-    elif event_type == 'images-n-before-changes':
+        stim_times = stimulus_presentation[condition][onset]
+        stim_ids = stimulus_presentation[condition].index.values
+    elif stim_type == 'images-n-before-changes':
         condition = (stimulus_presentation['n_before_change'] == image_order) & \
                     (stimulus_presentation['n_after_omission'] == -1)  # Get trials without omission only
-        event_times = stimulus_presentation[condition][onset]
-        event_ids = stimulus_presentation[condition].index.values
+        stim_times = stimulus_presentation[condition][onset]
+        stim_ids = stimulus_presentation[condition].index.values
     else:
-        event_times = stimulus_presentation[stimulus_presentation[event_type]][onset]  # noqa E501
-        event_ids = stimulus_presentation[stimulus_presentation[event_type]].index.values  # noqa E501
+        stim_times = stimulus_presentation[stimulus_presentation[stim_type]][onset]  # noqa E501
+        stim_ids = stimulus_presentation[stimulus_presentation[stim_type]].index.values  # noqa E501
 
-    return event_times, event_ids
+    return stim_times, stim_ids
 
 
 def get_stimulus_response_xr(ophys_experiment,
                              data_type='dff',
-                             event_type='all',
+                             stim_type='all',
                              image_order=0,
                              time_window=[-3, 3],
                              response_window_duration=0.5,
@@ -171,8 +171,8 @@ def get_stimulus_response_xr(ophys_experiment,
         See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
     data_type: str
         neural or behavioral data type to extract, options are: dff (default), events, filtered_events, running_speed, pupil_diameter, lick_rate
-    event_type: str
-        event type to align to, which can be found in columns of ophys_experiment.stimulus_presentations df.
+    stim_type: str
+        stimulus type to align to, which can be found in columns of ophys_experiment.stimulus_presentations df.
         options are: 'all' (default) - gets all stimulus trials
                 'images' - gets only image presentations (changes and not changes)
                 'omissions' - gets only trials with omitted stimuli
@@ -183,7 +183,7 @@ def get_stimulus_response_xr(ophys_experiment,
                 'images>n-changes' - gets > n-th image presentations after change (and omission > n if there is)
                 'images-n-before-changes' - gets only n-th image presentations before change (from trials without omission only)
     image_order: int
-        corresponds to n if event_type has 'n' in it
+        corresponds to n if stim_type has 'n' in it
         starts at 0 (same as change or omission), default = 0
     time_window: array
         array of two int or floats indicating the time window on sliced data, default = [-3, 3]
@@ -208,14 +208,14 @@ def get_stimulus_response_xr(ophys_experiment,
 
 
     kwargs: key, value mappings
-        Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
+        Other keyword arguments are passed down to mindscope_utilities.stim_triggered_response(),
         for interpolation method such as include_endpoint.
 
     Returns:
     __________
     stimulus_response_xr: xarray
         Xarray of aligned neural data with multiple dimensions: cell_specimen_id,
-        'eventlocked_timestamps', and 'stimulus_presentations_id'
+        'stimlocked_timestamps', and 'stimulus_presentations_id'
 
     '''
 
@@ -223,14 +223,14 @@ def get_stimulus_response_xr(ophys_experiment,
     stimulus_presentations = ophys_experiment.stimulus_presentations
     stimulus_presentations = add_n_to_stimulus_presentations(stimulus_presentations)
 
-    # get event times and event ids (original order in the stimulus flow)
-    event_times, event_ids = get_event_timestamps(
-        stimulus_presentations, event_type, image_order=image_order)
+    # get stimulus times and stimulus ids (original order in the stimulus flow)
+    stim_times, stim_ids = get_stim_timestamps(
+        stimulus_presentations, stim_type, image_order=image_order)
 
     if ('running' in data_type) or (
             'pupil' in data_type) or ('lick' in data_type):
         # for behavioral datastreams
-        # set up variables to handle only one timeseries per event instead of
+        # set up variables to handle only one timeseries per stim instead of
         # multiple cell_specimen_ids
         # create a column to take the place of 'cell_specimen_id'
         unique_id_string = 'trace_id'
@@ -274,11 +274,11 @@ def get_stimulus_response_xr(ophys_experiment,
 
     # align data using interpolation method
     for unique_id in tqdm(unique_ids):
-        etr = mindscope_utilities.event_triggered_response(
+        etr = mindscope_utilities.stim_triggered_response(
             data=data[data[unique_id_string] == unique_id],
             t='timestamps',
             y=data_type,
-            event_times=event_times,
+            stim_times=stim_times,
             t_start=time_window[0],
             t_end=time_window[1],
             output_format='wide',
@@ -298,10 +298,10 @@ def get_stimulus_response_xr(ophys_experiment,
     stimulus_response_xr = xr.DataArray(
         data=sliced_dataout,
         dims=(unique_id_string, 'stimulus_presentations_id',
-              'eventlocked_timestamps'),
+              'stimlocked_timestamps'),
         coords={
-            'eventlocked_timestamps': trace_timebase,
-            'stimulus_presentations_id': event_ids,
+            'stimlocked_timestamps': trace_timebase,
+            'stimulus_presentations_id': stim_ids,
             unique_id_string: unique_ids
         }
     )
@@ -349,7 +349,7 @@ def get_stimulus_response_xr(ophys_experiment,
 
     # create new xarray with means and p-values
     stimulus_response_xr = xr.Dataset({
-        'eventlocked_traces': stimulus_response_xr.eventlocked_traces,
+        'stimlocked_traces': stimulus_response_xr.stimlocked_traces,
         'mean_response': stimulus_response_xr.mean_response,
         'mean_baseline': stimulus_response_xr.mean_baseline,
         'p_value_gray_screen': p_value_gray_screen
@@ -369,7 +369,7 @@ def compute_means_xr(stimulus_response_xr, response_window_duration=0.5, baselin
     stimulus_response_xr: xarray
         stimulus_response_xr from get_stimulus_response_xr
         with three main dimentions: cell_specimen_id,
-        trail_id, and eventlocked_timestamps
+        trail_id, and stimlocked_timestamps
     response_window_duration:
         duration in seconds relative to stimulus onset to compute the mean responses
         in get_stimulus_response_xr
@@ -388,15 +388,15 @@ def compute_means_xr(stimulus_response_xr, response_window_duration=0.5, baselin
     baseline_range = [-baseline_window_duration, 0]
 
     mean_response = stimulus_response_xr.loc[
-        {'eventlocked_timestamps': slice(*response_range)}
-    ].mean(['eventlocked_timestamps'])
+        {'stimlocked_timestamps': slice(*response_range)}
+    ].mean(['stimlocked_timestamps'])
 
     mean_baseline = stimulus_response_xr.loc[
-        {'eventlocked_timestamps': slice(*baseline_range)}
-    ].mean(['eventlocked_timestamps'])
+        {'stimlocked_timestamps': slice(*baseline_range)}
+    ].mean(['stimlocked_timestamps'])
 
     stimulus_response_xr = xr.Dataset({
-        'eventlocked_traces': stimulus_response_xr,
+        'stimlocked_traces': stimulus_response_xr,
         'mean_response': mean_response,
         'mean_baseline': mean_baseline,
     })
@@ -482,7 +482,7 @@ def get_p_value_from_shuffled_spontaneous(mean_responses,
         p_values (array): p-value for each response mean, shape (nConditions, nCells)
     '''
 
-    from mindscope_utilities.general_utilities import eventlocked_traces
+    from mindscope_utilities.general_utilities import stimlocked_traces
 
     spontaneous_frames = get_spontaneous_frames(
         stimulus_presentations,
@@ -500,7 +500,7 @@ def get_p_value_from_shuffled_spontaneous(mean_responses,
     end_ind_offset = trace_len
     # get an x frame segment of each cells trace after each shuffled
     # spontaneous timepoint
-    spont_traces = eventlocked_traces(
+    spont_traces = stimlocked_traces(
         traces_array,
         shuffled_spont_inds,
         start_ind_offset,
@@ -541,7 +541,7 @@ def get_p_value_from_shuffled_spontaneous(mean_responses,
 
 def get_stimulus_response_df(ophys_experiment,
                              data_type='dff',
-                             event_type='all',
+                             stim_type='all',
                              image_order=0,
                              time_window=[-3, 3],
                              response_window_duration=0.5,
@@ -561,7 +561,7 @@ def get_stimulus_response_df(ophys_experiment,
         See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
     data_type: str
         neural or behavioral data type to extract, options are: dff (default), events, filtered_events, running_speed, pupil_diameter, lick_rate
-    event_type: str
+    stim_type: str
         event type to align to, which can be found in columns of ophys_experiment.stimulus_presentations df.
         options are: 'all' (default) - gets all stimulus trials
                      'images' - gets only image presentations (changes and not changes)
@@ -573,7 +573,7 @@ def get_stimulus_response_df(ophys_experiment,
                      'images>n-changes' - gets > n-th image presentations after change (and omission > n if there is)
                      'images-n-before-changes' - gets only n-th image presentations before change (from trials without omission only)
     image_order: int
-        corresponds to n if event_type has 'n' in it
+        corresponds to n if stim_type has 'n' in it
         starts at 0 (same as change or omission), default = 0
     time_window: array
         array of two int or floats indicating the time window on sliced data, default = [-3, 3]
@@ -597,7 +597,7 @@ def get_stimulus_response_df(ophys_experiment,
         In the case that dataset object is loaded through publicly released NWB files, only 'valid' ROIs will be returned
 
     kwargs: key, value mappings
-        Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
+        Other keyword arguments are passed down to mindscope_utilities.stim_triggered_response(),
         for interpolation method such as output_sampling_rate and include_endpoint.
 
     Returns:
@@ -610,7 +610,7 @@ def get_stimulus_response_df(ophys_experiment,
     stimulus_response_xr = get_stimulus_response_xr(
         ophys_experiment=ophys_experiment,
         data_type=data_type,
-        event_type=event_type,
+        stim_type=stim_type,
         image_order=image_order,
         time_window=time_window,
         response_window_duration=response_window_duration,
@@ -625,7 +625,7 @@ def get_stimulus_response_df(ophys_experiment,
     # (data_type == 'lick_rate'):
     if ('lick' in data_type) or (
             'pupil' in data_type) or ('running' in data_type):
-        # set up variables to handle only one timeseries per event instead of
+        # set up variables to handle only one timeseries per stim instead of
         # multiple cell_specimen_ids
         # create a column to take the place of 'cell_specimen_id'
         unique_id_string = 'trace_id'
@@ -647,13 +647,13 @@ def get_stimulus_response_df(ophys_experiment,
     stacked_pval_gray_screen = p_vals_gray_screen.stack(
         multi_index=('stimulus_presentations_id', unique_id_string)).transpose()  # noqa E501
 
-    # get event locked traces and timestamps from xarray
-    traces = stimulus_response_xr['eventlocked_traces']
+    # get stim locked traces and timestamps from xarray
+    traces = stimulus_response_xr['stimlocked_traces']
     stacked_traces = traces.stack(multi_index=(
         'stimulus_presentations_id', unique_id_string)).transpose()
     num_repeats = len(stacked_traces)
     trace_timestamps = np.repeat(
-        stacked_traces.coords['eventlocked_timestamps'].data[np.newaxis, :],
+        stacked_traces.coords['stimlocked_timestamps'].data[np.newaxis, :],
         repeats=num_repeats, axis=0)
 
     # turn it all into a dataframe
@@ -673,7 +673,7 @@ def get_stimulus_response_df(ophys_experiment,
     else:
         stimulus_response_df['ophys_frame_rate'] = ophys_experiment.metadata['ophys_frame_rate']
     stimulus_response_df['data_type'] = data_type
-    stimulus_response_df['event_type'] = event_type
+    stimulus_response_df['stim_type'] = stim_type
     stimulus_response_df['interpolate'] = interpolate
     stimulus_response_df['output_sampling_rate'] = output_sampling_rate
     stimulus_response_df['response_window_duration'] = response_window_duration
@@ -951,8 +951,8 @@ def add_epochs_to_stimulus_presentations(
     """
     Add column called 'epoch' with values as an index for the epoch within a session, for a given epoch duration.
 
-    :param stimulus_presentations: dataframe with a column indicating event start times
-    :param time_column: name of column in dataframe indicating event times
+    :param stimulus_presentations: dataframe with a column indicating stim start times
+    :param time_column: name of column in dataframe indicating stim times
     :param epoch_duration_mins: desired epoch length in minutes
     :return: input dataframe with epoch column added
     """
@@ -1063,24 +1063,24 @@ def add_engagement_state_to_stimulus_presentations(
     return stimulus_presentations
 
 
-def time_from_last(timestamps, event_times, side='right'):
+def time_from_last(timestamps, stim_times, side='right'):
     '''
-    For each timestamp, returns the time from the most recent other time (in event_times)
+    For each timestamp, returns the time from the most recent other time (in stim_times)
 
     Args:
-        timestamps (np.array): array of timestamps for which the 'time from last event' will be returned
-        event_times (np.array): event timestamps
+        timestamps (np.array): array of timestamps for which the 'time from last stim' will be returned
+        stim_times (np.array): stimulus timestamps
     Returns
-        time_from_last_event (np.array): the time from the last event for each timestamp
+        time_from_last_stim (np.array): the time from the last stimulus for each timestamp
 
     '''
-    last_event_index = np.searchsorted(
-        a=event_times, v=timestamps, side=side) - 1
-    time_from_last_event = timestamps - event_times[last_event_index]
+    last_stim_index = np.searchsorted(
+        a=stim_times, v=timestamps, side=side) - 1
+    time_from_last_stim = timestamps - stim_times[last_stim_index]
     # flashes that happened before the other thing happened should return nan
-    time_from_last_event[last_event_index == -1] = np.nan
+    time_from_last_stim[last_stim_index == -1] = np.nan
 
-    return time_from_last_event
+    return time_from_last_stim
 
 
 def add_time_from_last_change_to_stimulus_presentations(
@@ -1466,7 +1466,7 @@ def get_licks_df(ophys_experiment):
     Creates a dataframe containing columns for 'timestamps', 'licks', where values are from
     a binary array of the length of stimulus timestamps where frames with no lick are 0 and frames with a lick are 1,
     and a column called 'lick_rate' with values of 'licks' averaged over a 6 frame window to get licks per 100ms,
-    Can be used to plot event triggered average lick rate
+    Can be used to plot stim triggered average lick rate
     Parameters:
     -----------
     ophys_experiment: obj
