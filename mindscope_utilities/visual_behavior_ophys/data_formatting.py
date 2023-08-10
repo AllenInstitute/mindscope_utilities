@@ -2,8 +2,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from tqdm import tqdm
-import mindscope_utilities
-# from allensdk.brain_observatory.behavior.trials_processing import calculate_reward_rate
+import mindscope_utilities.general_utilities as utils
 
 
 def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
@@ -160,7 +159,7 @@ def get_stimulus_response_xr(ophys_experiment,
 
 
     kwargs: key, value mappings
-        Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
+        Other keyword arguments are passed down to general_utilities.event_triggered_response(),
         for interpolation method such as include_endpoint.
 
     Returns:
@@ -229,7 +228,7 @@ def get_stimulus_response_xr(ophys_experiment,
 
     # align data using interpolation method
     for unique_id in tqdm(unique_ids):
-        etr = mindscope_utilities.event_triggered_response(
+        etr = utils.event_triggered_response(
             data=data[data[unique_id_string] == unique_id],
             t='timestamps',
             y=data_type,
@@ -380,9 +379,9 @@ def get_spontaneous_frames(
     behavior_start_time = stimulus_presentations.iloc[first_index].start_time
     spontaneous_start_time_pre = behavior_start_time - spont_duration
     spontaneous_end_time_pre = behavior_start_time
-    spontaneous_start_frame_pre = mindscope_utilities.index_of_nearest_value(
+    spontaneous_start_frame_pre = utils.index_of_nearest_value(
         ophys_timestamps, spontaneous_start_time_pre)
-    spontaneous_end_frame_pre = mindscope_utilities.index_of_nearest_value(
+    spontaneous_end_frame_pre = utils.index_of_nearest_value(
         ophys_timestamps, spontaneous_end_time_pre)
     spontaneous_frames_pre = np.arange(
         spontaneous_start_frame_pre, spontaneous_end_frame_pre, 1)
@@ -392,9 +391,9 @@ def get_spontaneous_frames(
     behavior_end_time = stimulus_presentations.iloc[-1].start_time
     spontaneous_start_time_post = behavior_end_time + 0.75
     spontaneous_end_time_post = spontaneous_start_time_post + spont_duration
-    spontaneous_start_frame_post = mindscope_utilities.index_of_nearest_value(
+    spontaneous_start_frame_post = utils.index_of_nearest_value(
         ophys_timestamps, spontaneous_start_time_post)
-    spontaneous_end_frame_post = mindscope_utilities.index_of_nearest_value(
+    spontaneous_end_frame_post = utils.index_of_nearest_value(
         ophys_timestamps, spontaneous_end_time_post)
     spontaneous_frames_post = np.arange(
         spontaneous_start_frame_post, spontaneous_end_frame_post, 1)
@@ -529,7 +528,7 @@ def get_stimulus_response_df(ophys_experiment,
         In the case that dataset object is loaded through publicly released NWB files, only 'valid' ROIs will be returned
 
     kwargs: key, value mappings
-        Other keyword arguments are passed down to mindscope_utilities.event_triggered_response(),
+        Other keyword arguments are passed down to general_utilities.event_triggered_response(),
         for interpolation method such as output_sampling_rate and include_endpoint.
 
     Returns:
@@ -1324,7 +1323,7 @@ def calculate_dprime_matrix(stimuli, sort_by_column=True, engaged_only=True):
     d_prime_matrix = response_matrix.copy()
     for row in response_matrix.columns:
         for col in response_matrix.columns:
-            d_prime_matrix.loc[row][col] = mindscope_utilities.dprime(
+            d_prime_matrix.loc[row][col] = utils.dprime(
                 hit_rate=response_matrix.loc[row][col],
                 fa_rate=response_matrix[col][col],
                 limits=False
