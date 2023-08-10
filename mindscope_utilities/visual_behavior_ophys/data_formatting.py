@@ -895,7 +895,7 @@ def add_epochs_to_stimulus_presentations(
     start_time = stimulus_presentations[time_column].values[0]
     stop_time = stimulus_presentations[time_column].values[-1]
     epoch_times = np.arange(start_time, stop_time, epoch_duration_mins * 60)
-    stimulus_presentations['epoch'] = [0]
+    stimulus_presentations['epoch'] = None
     for i, time in enumerate(epoch_times):
         if i < len(epoch_times) - 1:
             indices = stimulus_presentations[(stimulus_presentations[time_column] >= epoch_times[i]) & (
