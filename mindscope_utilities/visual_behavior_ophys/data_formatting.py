@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 import mindscope_utilities
-from allensdk.brain_observatory.behavior.trials_processing import calculate_reward_rate
+# from allensdk.brain_observatory.behavior.trials_processing import calculate_reward_rate
 
 
 def build_tidy_cell_df(ophys_experiment, exclude_invalid_rois=True):
@@ -835,7 +835,7 @@ def add_mean_pupil_to_stimulus_presentations(
     return stimulus_presentations
 
 
-def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
+def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials, reward_rate):
     '''
     Parameters:
     ____________
@@ -843,6 +843,8 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
         ophys_experiment.trials
     stimulus_presentation: Pandas.DataFrame
         ophys_experiment.stimulus_presentations
+    reward_rate: np.array, of length equal to the number of trials
+        output of ophys_experiment.get_reward_rate()
 
     Returns:
     ___________
@@ -855,9 +857,13 @@ def add_reward_rate_to_stimulus_presentations(stimulus_presentations, trials):
 
     last_time = 0
     reward_rate_by_frame = []
-    if 'reward_rate' not in trials:
-        trials['reward_rate'] = calculate_reward_rate(
-            trials['response_latency'].values, trials['start_time'], window=.5)
+
+    # add reward rate to trials
+    trials['reward_rate'] = reward_rate
+
+    # if 'reward_rate' not in trials:
+    #     trials['reward_rate'] = calculate_reward_rate(
+    #         trials['response_latency'].values, trials['start_time'], window=.5)
 
     trials = trials[trials['aborted'] == False]  # NOQA
     for change_time in trials.change_time.values:
@@ -1066,7 +1072,7 @@ def get_annotated_stimulus_presentations(
                     ophys_experiment.eye_tracking))
             print(e)
     stimulus_presentations = add_reward_rate_to_stimulus_presentations(
-        stimulus_presentations, ophys_experiment.trials)
+        stimulus_presentations, ophys_experiment.trials, ophys_experiment.get_reward_rate())
     stimulus_presentations = add_epochs_to_stimulus_presentations(
         stimulus_presentations,
         time_column='start_time',
