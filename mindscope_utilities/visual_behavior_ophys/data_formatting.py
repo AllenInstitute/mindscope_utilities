@@ -1050,6 +1050,7 @@ def get_annotated_stimulus_presentations(
         See https://github.com/AllenInstitute/AllenSDK/blob/master/allensdk/brain_observatory/behavior/behavior_ophys_ophys_experiment.py  # noqa E501
     :return: stimulus_presentations attribute of BehaviorOphysExperiment, with additional columns added
     """
+    print('annotating stim presentations')
     stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
     stimulus_presentations = add_licks_to_stimulus_presentations(
         stimulus_presentations, ophys_experiment.licks, time_window=[0, 0.75])
@@ -1070,12 +1071,15 @@ def get_annotated_stimulus_presentations(
                 'could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(
                     ophys_experiment.eye_tracking))
             print(e)
+    print('adding reward rate')
     stimulus_presentations = add_reward_rate_to_stimulus_presentations(
         stimulus_presentations, ophys_experiment.trials, ophys_experiment.get_reward_rate())
+    print('adding epochs')
     stimulus_presentations = add_epochs_to_stimulus_presentations(
         stimulus_presentations,
         time_column='start_time',
         epoch_duration_mins=epoch_duration_mins)
+    print('trying to add pre change and pre omitted')
     try:  # not all session types have catch trials or omissions
         stimulus_presentations = add_trials_data_to_stimulus_presentations_table(
             stimulus_presentations, ophys_experiment.trials)
@@ -1101,6 +1105,7 @@ def get_annotated_stimulus_presentations(
             1)
     except Exception as e:
         print(e)
+    print('finished annotating')
 
     return stimulus_presentations
 
