@@ -284,7 +284,7 @@ def get_stimulus_response_xr(ophys_experiment,
         # nCells
         p_value_gray_screen = get_p_value_from_shuffled_spontaneous(
             mean_responses,
-            ophys_experiment.stimulus_presentations,
+            stimulus_presentations,
             ophys_experiment.ophys_timestamps,
             traces_array,
             response_window_duration * output_sampling_rate,
