@@ -171,7 +171,8 @@ def get_stimulus_response_xr(ophys_experiment,
     '''
 
     # load stimulus_presentations table
-    stimulus_presentations = ophys_experiment.stimulus_presentations
+    stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
+    stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
 
     # get event times and event ids (original order in the stimulus flow)
     event_times, event_ids = get_event_timestamps(
@@ -203,7 +204,7 @@ def get_stimulus_response_xr(ophys_experiment,
             normalize_to_gray_screen=True,
             zscore=False,
             interpolate_to_ophys=False,
-            stimulus_presentations=ophys_experiment.stimulus_presentations,
+            stimulus_presentations=stimulus_presentations,
             ophys_timestamps=None)
         # normalize to gray screen baseline
         data[unique_id_string] = 0  # only one value because only one trace
@@ -903,7 +904,7 @@ def add_epochs_to_stimulus_presentations(
         else:
             indices = stimulus_presentations[(
                 stimulus_presentations[time_column] >= epoch_times[i])].index.values
-        stimulus_presentations.at[indices, 'epoch'] = i
+        stimulus_presentations.loc[indices, 'epoch'] = i
     return stimulus_presentations
 
 
@@ -1147,6 +1148,8 @@ def annotate_stimuli(dataset, inplace=False):
         stimulus_presentations = dataset.stimulus_presentations
     else:
         stimulus_presentations = dataset.stimulus_presentations.copy()
+
+    stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
 
     # add previous_image_name
     stimulus_presentations['previous_image_name'] = stimulus_presentations['image_name'].shift(
