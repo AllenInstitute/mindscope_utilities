@@ -172,7 +172,8 @@ def get_stimulus_response_xr(ophys_experiment,
 
     # load stimulus_presentations table
     stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
-    stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+    if 'stimulus_block_name' in stimulus_presentations:
+    		stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
 
     # get event times and event ids (original order in the stimulus flow)
     event_times, event_ids = get_event_timestamps(
@@ -1149,7 +1150,8 @@ def annotate_stimuli(dataset, inplace=False):
     else:
         stimulus_presentations = dataset.stimulus_presentations.copy()
 
-    stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+    if 'stimulus_block_name' in stimulus_presentations:
+    		stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
 
     # add previous_image_name
     stimulus_presentations['previous_image_name'] = stimulus_presentations['image_name'].shift(
