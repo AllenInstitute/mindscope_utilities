@@ -1081,7 +1081,6 @@ def get_annotated_stimulus_presentations(
         stimulus_presentations,
         time_column='start_time',
         epoch_duration_mins=epoch_duration_mins)
-    print('trying to add pre change and pre omitted')
     try:  # not all session types have catch trials or omissions
         stimulus_presentations = add_trials_data_to_stimulus_presentations_table(
             stimulus_presentations, ophys_experiment.trials)
