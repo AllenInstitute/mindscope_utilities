@@ -1054,6 +1054,7 @@ def get_annotated_stimulus_presentations(
     """
     print('annotating stim presentations')
     stimulus_presentations = ophys_experiment.stimulus_presentations.copy()
+    stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
     stimulus_presentations = add_licks_to_stimulus_presentations(
         stimulus_presentations, ophys_experiment.licks, time_window=[0, 0.75])
     stimulus_presentations = add_mean_running_speed_to_stimulus_presentations(
@@ -1070,40 +1071,36 @@ def get_annotated_stimulus_presentations(
                     0.75])
         except Exception as e:
             print(
-                'could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(
-                    ophys_experiment.eye_tracking))
+                'could not add mean pupil to stimulus presentations, length of eye_tracking attribute is', len(ophys_experiment.eye_tracking))
             print(e)
     print('adding reward rate')
-    stimulus_presentations = add_reward_rate_to_stimulus_presentations(
-        stimulus_presentations, ophys_experiment.trials, ophys_experiment.get_reward_rate())
+    stimulus_presentations = add_reward_rate_to_stimulus_presentations(stimulus_presentations, ophys_experiment.trials, ophys_experiment.get_reward_rate())
     print('adding epochs')
-    stimulus_presentations = add_epochs_to_stimulus_presentations(
-        stimulus_presentations,
-        time_column='start_time',
-        epoch_duration_mins=epoch_duration_mins)
+    stimulus_presentations = add_epochs_to_stimulus_presentations(stimulus_presentations,
+														        time_column='start_time',
+														        epoch_duration_mins=epoch_duration_mins)
     try:  # not all session types have catch trials or omissions
-        stimulus_presentations = add_trials_data_to_stimulus_presentations_table(
-            stimulus_presentations, ophys_experiment.trials)
+        stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, ophys_experiment.trials)
         # add time from last change
-        stimulus_presentations = add_time_from_last_change_to_stimulus_presentations(
-            stimulus_presentations)
+        stimulus_presentations = add_time_from_last_change_to_stimulus_presentations(stimulus_presentations)
         # add pre-change
-        stimulus_presentations['pre_change'] = stimulus_presentations['is_change'].shift(
-            -1)
+        stimulus_presentations['pre_change'] = stimulus_presentations['is_change'].shift(-1)
         # add licked Boolean
         stimulus_presentations['licked'] = [True if len(
             licks) > 0 else False for licks in stimulus_presentations.licks.values]
-        stimulus_presentations['lick_on_next_flash'] = stimulus_presentations['licked'].shift(
-            -1)
+        stimulus_presentations['lick_on_next_flash'] = stimulus_presentations['licked'].shift(-1)
         # add engagement state based on reward rate - note this reward rate is
         # calculated differently than the SDK version
         stimulus_presentations = add_engagement_state_to_stimulus_presentations(
             stimulus_presentations, ophys_experiment.trials)
         # add omission annotation
-        stimulus_presentations['pre_omitted'] = stimulus_presentations['omitted'].shift(
-            -1)
-        stimulus_presentations['post_omitted'] = stimulus_presentations['omitted'].shift(
-            1)
+        stimulus_presentations['pre_omitted'] = stimulus_presentations['omitted'].shift(-1)
+        stimulus_presentations.loc[stimulus_presentations[stimulus_presentations['pre_omitted'].isnull()].index, 'pre_omitted'] = False
+        stimulus_presentations['pre_omitted'] = stimulus_presentations.pre_omitted.astype('object') # Dont want a Boolean object, it makes things weird
+        # stimulus_presentations['post_omitted'] = False #set all to False first, so that there are no NaNs
+        stimulus_presentations['post_omitted'] = stimulus_presentations['omitted'].shift(1)
+        stimulus_presentations.loc[stimulus_presentations[stimulus_presentations['post_omitted'].isnull()].index, 'post_omitted'] = False
+        stimulus_presentations['post_omitted'] = stimulus_presentations.post_omitted.astype('object') # Dont want a Boolean object, it makes things weird
     except Exception as e:
         print(e)
     print('finished annotating')
