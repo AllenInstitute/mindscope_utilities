@@ -1079,6 +1079,11 @@ def get_annotated_stimulus_presentations(
     stimulus_presentations = add_epochs_to_stimulus_presentations(stimulus_presentations,
 														        time_column='start_time',
 														        epoch_duration_mins=epoch_duration_mins)
+
+    # add omission annotation
+    stimulus_presentations['pre_omitted'] = stimulus_presentations['omitted'].shift(-1)
+    stimulus_presentations['post_omitted'] = stimulus_presentations['omitted'].shift(1)
+    
     try:  # not all session types have catch trials or omissions
         stimulus_presentations = add_trials_data_to_stimulus_presentations_table(stimulus_presentations, ophys_experiment.trials)
         # add time from last change
@@ -1093,16 +1098,15 @@ def get_annotated_stimulus_presentations(
         # calculated differently than the SDK version
         stimulus_presentations = add_engagement_state_to_stimulus_presentations(
             stimulus_presentations, ophys_experiment.trials)
-        # add omission annotation
-        stimulus_presentations['pre_omitted'] = stimulus_presentations['omitted'].shift(-1)
-        stimulus_presentations.loc[stimulus_presentations[stimulus_presentations['pre_omitted'].isnull()].index, 'pre_omitted'] = False
-        stimulus_presentations['pre_omitted'] = stimulus_presentations.pre_omitted.astype('object') # Dont want a Boolean object, it makes things weird
-        # stimulus_presentations['post_omitted'] = False #set all to False first, so that there are no NaNs
-        stimulus_presentations['post_omitted'] = stimulus_presentations['omitted'].shift(1)
-        stimulus_presentations.loc[stimulus_presentations[stimulus_presentations['post_omitted'].isnull()].index, 'post_omitted'] = False
-        stimulus_presentations['post_omitted'] = stimulus_presentations.post_omitted.astype('object') # Dont want a Boolean object, it makes things weird
     except Exception as e:
         print(e)
+
+    # change any boolean columns to bool
+    for column in stimulus_presentations.columns.values:
+        if stimulus_presentations[column].dtype == 'boolean':
+            # remove NaNs and make bool
+            stimulus_presentations.loc[stimulus_presentations[stimulus_presentations[column].isnull()].index, column] = False
+            stimulus_presentations[column] = stimulus_presentations[column].astype('bool')
     print('finished annotating')
 
     return stimulus_presentations
